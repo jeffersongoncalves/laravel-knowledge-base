@@ -40,11 +40,11 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
- * @property-read \Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract $category
- * @property-read \Illuminate\Database\Eloquent\Model|\Eloquent $author
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleVersionContract> $versions
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract> $feedback
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract> $relatedArticles
+ * @property-read Category $category
+ * @property-read \Illuminate\Database\Eloquent\Model $author
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ArticleVersion> $versions
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ArticleFeedback> $feedback
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Article> $relatedArticles
  */
 class Article extends Model implements ArticleContract
 {
@@ -98,7 +98,6 @@ class Article extends Model implements ArticleContract
         });
     }
 
-    /** @return BelongsTo<\Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract, $this> */
     public function category(): BelongsTo
     {
         return $this->belongsTo(ModelResolver::category(), 'category_id');
@@ -109,19 +108,16 @@ class Article extends Model implements ArticleContract
         return $this->morphTo('author');
     }
 
-    /** @return HasMany<\Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleVersionContract, $this> */
     public function versions(): HasMany
     {
         return $this->hasMany(ModelResolver::articleVersion(), 'article_id');
     }
 
-    /** @return HasMany<\Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract, $this> */
     public function feedback(): HasMany
     {
         return $this->hasMany(ModelResolver::articleFeedback(), 'article_id');
     }
 
-    /** @return BelongsToMany<\Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract, $this> */
     public function relatedArticles(): BelongsToMany
     {
         $prefix = config('knowledge-base.table_prefix') ?? '';

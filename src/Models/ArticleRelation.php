@@ -14,8 +14,8 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
  * @property int $sort_order
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract $article
- * @property-read \Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract $relatedArticle
+ * @property-read Article $article
+ * @property-read Article $relatedArticle
  */
 class ArticleRelation extends Pivot implements ArticleRelationContract
 {
@@ -30,13 +30,11 @@ class ArticleRelation extends Pivot implements ArticleRelationContract
         return (config('knowledge-base.table_prefix') ?? '').'article_relations';
     }
 
-    /** @return BelongsTo<\Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract, $this> */
     public function article(): BelongsTo
     {
         return $this->belongsTo(ModelResolver::article(), 'article_id');
     }
 
-    /** @return BelongsTo<\Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract, $this> */
     public function relatedArticle(): BelongsTo
     {
         return $this->belongsTo(ModelResolver::article(), 'related_article_id');

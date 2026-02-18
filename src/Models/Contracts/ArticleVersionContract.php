@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 interface ArticleVersionContract
 {
-    /** @return BelongsTo<\Illuminate\Database\Eloquent\Model&ArticleContract, $this> */
     public function article(): BelongsTo;
 
     public function editor(): MorphTo;

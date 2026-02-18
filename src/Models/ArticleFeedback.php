@@ -17,8 +17,8 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
  * @property string|null $comment
  * @property string|null $ip_address
  * @property \Illuminate\Support\Carbon $created_at
- * @property-read \Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract $article
- * @property-read \Illuminate\Database\Eloquent\Model|\Eloquent|null $user
+ * @property-read Article $article
+ * @property-read \Illuminate\Database\Eloquent\Model|null $user
  */
 class ArticleFeedback extends Model implements ArticleFeedbackContract
 {
@@ -44,7 +44,6 @@ class ArticleFeedback extends Model implements ArticleFeedbackContract
         return (config('knowledge-base.table_prefix') ?? '').'article_feedback';
     }
 
-    /** @return BelongsTo<\Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract, $this> */
     public function article(): BelongsTo
     {
         return $this->belongsTo(ModelResolver::article(), 'article_id');

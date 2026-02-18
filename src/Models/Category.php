@@ -24,9 +24,9 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
- * @property-read \Illuminate\Database\Eloquent\Model&CategoryContract|null $parent
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Database\Eloquent\Model&CategoryContract> $children
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract> $articles
+ * @property-read Category|null $parent
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Category> $children
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Article> $articles
  */
 class Category extends Model implements CategoryContract
 {
@@ -54,19 +54,16 @@ class Category extends Model implements CategoryContract
         return (config('knowledge-base.table_prefix') ?? '').'categories';
     }
 
-    /** @return BelongsTo<\Illuminate\Database\Eloquent\Model&CategoryContract, $this> */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(ModelResolver::category(), 'parent_id');
     }
 
-    /** @return HasMany<\Illuminate\Database\Eloquent\Model&CategoryContract, $this> */
     public function children(): HasMany
     {
         return $this->hasMany(ModelResolver::category(), 'parent_id');
     }
 
-    /** @return HasMany<\Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract, $this> */
     public function articles(): HasMany
     {
         return $this->hasMany(ModelResolver::article(), 'category_id');

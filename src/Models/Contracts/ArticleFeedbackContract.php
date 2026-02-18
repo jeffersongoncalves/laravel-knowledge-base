@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 interface ArticleFeedbackContract
 {
-    /** @return BelongsTo<\Illuminate\Database\Eloquent\Model&ArticleContract, $this> */
     public function article(): BelongsTo;
 
     public function user(): MorphTo;

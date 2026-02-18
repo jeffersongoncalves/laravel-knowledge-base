@@ -19,8 +19,8 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
  * @property int $editor_id
  * @property string|null $change_notes
  * @property \Illuminate\Support\Carbon $created_at
- * @property-read \Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract $article
- * @property-read \Illuminate\Database\Eloquent\Model|\Eloquent $editor
+ * @property-read Article $article
+ * @property-read \Illuminate\Database\Eloquent\Model $editor
  */
 class ArticleVersion extends Model implements ArticleVersionContract
 {
@@ -48,7 +48,6 @@ class ArticleVersion extends Model implements ArticleVersionContract
         return (config('knowledge-base.table_prefix') ?? '').'article_versions';
     }
 
-    /** @return BelongsTo<\Illuminate\Database\Eloquent\Model&\JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract, $this> */
     public function article(): BelongsTo
     {
         return $this->belongsTo(ModelResolver::article(), 'article_id');

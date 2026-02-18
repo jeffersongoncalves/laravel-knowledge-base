@@ -10,6 +10,7 @@ use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticleCreated;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticleFeedbackReceived;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticlePublished;
+use JeffersonGoncalves\KnowledgeBase\Models\Article;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
@@ -17,13 +18,12 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 
 class KnowledgeBaseService
 {
-    /** @return Model&ArticleContract */
     public function createArticle(array $data, Model $author): Model
     {
         return DB::transaction(function () use ($data, $author) {
             $articleClass = ModelResolver::article();
 
-            /** @var Model&ArticleContract $article */
+            /** @var Article $article */
             $article = new $articleClass;
             $article->fill($data);
             $article->author_type = $author->getMorphClass();
@@ -56,10 +56,10 @@ class KnowledgeBaseService
         });
     }
 
-    /** @return Model&ArticleContract */
     public function updateArticle(Model&ArticleContract $article, array $data, Model $editor, ?string $changeNotes = null): Model
     {
         return DB::transaction(function () use ($article, $data, $editor, $changeNotes) {
+            /** @var Article $article */
             $article->fill($data);
             $article->save();
 
@@ -84,7 +84,6 @@ class KnowledgeBaseService
         });
     }
 
-    /** @return Model&ArticleContract */
     public function publishArticle(Model&ArticleContract $article): Model
     {
         $article->update([
@@ -97,7 +96,6 @@ class KnowledgeBaseService
         return $article->fresh();
     }
 
-    /** @return Model&ArticleContract */
     public function archiveArticle(Model&ArticleContract $article): Model
     {
         $article->update([
@@ -112,7 +110,6 @@ class KnowledgeBaseService
         return $article->delete();
     }
 
-    /** @return Model&CategoryContract */
     public function createCategory(array $data): Model
     {
         if (! isset($data['slug']) && isset($data['name'])) {
@@ -121,10 +118,12 @@ class KnowledgeBaseService
 
         $categoryClass = ModelResolver::category();
 
-        return $categoryClass::create($data);
+        /** @var Model $category */
+        $category = $categoryClass::create($data);
+
+        return $category;
     }
 
-    /** @return Model&CategoryContract */
     public function updateCategory(Model&CategoryContract $category, array $data): Model
     {
         $category->update($data);
@@ -137,7 +136,6 @@ class KnowledgeBaseService
         return $category->delete();
     }
 
-    /** @return Model&ArticleFeedbackContract */
     public function addFeedback(Model&ArticleContract $article, bool $isHelpful, ?Model $user = null, ?string $comment = null, ?string $ipAddress = null): Model
     {
         /** @var Model&ArticleFeedbackContract $feedback */
@@ -165,8 +163,9 @@ class KnowledgeBaseService
     {
         $articleClass = ModelResolver::article();
 
+        /** @var \Illuminate\Database\Eloquent\Builder<Article> $builder */
         $builder = $articleClass::query()
-            ->published()
+            ->where('status', ArticleStatus::Published)
             ->where(function ($q) use ($query) {
                 $q->where('title', 'LIKE', "%{$query}%")
                     ->orWhere('content', 'LIKE', "%{$query}%");
