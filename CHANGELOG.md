@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.1 - 2026-02-17
+
+### What's Changed
+
+#### Bug Fixes
+
+- Resolve all Larastan level 5 errors by replacing intersection types with concrete model classes
+  - Replace `Model&Contract` intersection types in `@property-read` with concrete model classes
+  - Remove unsupported `@return` generic annotations from relationship methods
+  - Use `@var Article` annotations in `KnowledgeBaseService` for proper property resolution
+  - Fix `createCategory` return type mismatch
+  - Remove invalid `checkMissingIterableValueType` from `phpstan.neon.dist`
+  
+
+**Full Changelog**: https://github.com/jeffersongoncalves/laravel-knowledge-base/compare/v1.0.0...v1.0.1
+
 ## v1.0.0 - 2026-02-17
 
 ### What's New
