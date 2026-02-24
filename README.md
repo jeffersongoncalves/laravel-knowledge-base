@@ -1,3 +1,9 @@
+<div class="filament-hidden">
+
+![Laravel Knowledge Base](https://raw.githubusercontent.com/jeffersongoncalves/laravel-knowledge-base/main/art/jeffersongoncalves-laravel-knowledge-base.png)
+
+</div>
+
 # Laravel Knowledge Base
 
 A Laravel package for building knowledge bases with articles, categories, versioning, feedback, and search.
