@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.2 - 2026-02-24
+
+### What's Changed
+
+- Add Laravel 13.x support (illuminate/* ^13.0) in composer.json and CI test matrix
+- Add orchestra/testbench ^11.0 for Laravel 13 testing
+
 ## v1.0.1 - 2026-02-17
 
 ### What's Changed
