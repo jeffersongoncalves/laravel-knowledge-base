@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.0.3 - 2026-04-26
+
+### What's Changed
+
+* build(deps): Bump ramsey/composer-install from 3 to 4 by @dependabot[bot] in https://github.com/jeffersongoncalves/laravel-knowledge-base/pull/1
+* build(deps): Bump dependabot/fetch-metadata from 2.5.0 to 3.0.0 by @dependabot[bot] in https://github.com/jeffersongoncalves/laravel-knowledge-base/pull/2
+
+### New Contributors
+
+* @dependabot[bot] made their first contribution in https://github.com/jeffersongoncalves/laravel-knowledge-base/pull/1
+
+**Full Changelog**: https://github.com/jeffersongoncalves/laravel-knowledge-base/compare/v1.0.2...v1.0.3
+
 ## v1.0.2 - 2026-02-24
 
 ### What's Changed
