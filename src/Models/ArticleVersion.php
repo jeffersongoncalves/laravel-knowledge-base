@@ -5,6 +5,7 @@ namespace JeffersonGoncalves\KnowledgeBase\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleVersionContract;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 
@@ -18,9 +19,9 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
  * @property string $editor_type
  * @property int $editor_id
  * @property string|null $change_notes
- * @property \Illuminate\Support\Carbon $created_at
+ * @property Carbon $created_at
  * @property-read Article $article
- * @property-read \Illuminate\Database\Eloquent\Model $editor
+ * @property-read Model $editor
  */
 class ArticleVersion extends Model implements ArticleVersionContract
 {

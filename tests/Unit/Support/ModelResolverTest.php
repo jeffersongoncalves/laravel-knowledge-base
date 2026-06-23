@@ -5,9 +5,17 @@ use JeffersonGoncalves\KnowledgeBase\Models\ArticleFeedback;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleRelation;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleVersion;
 use JeffersonGoncalves\KnowledgeBase\Models\Category;
+use JeffersonGoncalves\KnowledgeBase\Services\KnowledgeBaseService;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
+use JeffersonGoncalves\KnowledgeBase\Tests\Fixtures\CustomArticle;
+use JeffersonGoncalves\KnowledgeBase\Tests\Fixtures\User;
 
 beforeEach(function () {
+    ModelResolver::flushCache();
+});
+
+afterEach(function () {
+    config(['knowledge-base.models.article' => Article::class]);
     ModelResolver::flushCache();
 });
 
@@ -60,3 +68,32 @@ it('flushes cache correctly', function () {
 
     ModelResolver::article();
 })->throws(InvalidArgumentException::class);
+
+it('resolves an overridden article model from config', function () {
+    config(['knowledge-base.models.article' => CustomArticle::class]);
+    ModelResolver::flushCache();
+
+    expect(ModelResolver::article())->toBe(CustomArticle::class);
+});
+
+it('uses the overridden model when creating articles', function () {
+    config(['knowledge-base.models.article' => CustomArticle::class]);
+    ModelResolver::flushCache();
+
+    User::createTable();
+    $category = Category::factory()->create();
+    $author = User::create([
+        'name' => 'John',
+        'email' => 'john@example.com',
+    ]);
+
+    $service = app(KnowledgeBaseService::class);
+
+    $article = $service->createArticle([
+        'category_id' => $category->id,
+        'title' => 'Overridden Model Article',
+        'content' => 'Content.',
+    ], $author);
+
+    expect($article)->toBeInstanceOf(CustomArticle::class);
+});

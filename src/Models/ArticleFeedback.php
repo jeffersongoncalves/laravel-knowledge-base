@@ -5,6 +5,7 @@ namespace JeffersonGoncalves\KnowledgeBase\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 
@@ -16,9 +17,9 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
  * @property bool $is_helpful
  * @property string|null $comment
  * @property string|null $ip_address
- * @property \Illuminate\Support\Carbon $created_at
+ * @property Carbon $created_at
  * @property-read Article $article
- * @property-read \Illuminate\Database\Eloquent\Model|null $user
+ * @property-read Model|null $user
  */
 class ArticleFeedback extends Model implements ArticleFeedbackContract
 {

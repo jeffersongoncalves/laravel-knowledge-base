@@ -35,8 +35,7 @@ return new class extends Migration
             $table->softDeletes();
 
             if (DB::getDriverName() !== 'sqlite') {
-                $table->fullText('title');
-                $table->fullText('content');
+                $table->fullText(['title', 'content']);
             }
         });
     }

@@ -4,6 +4,7 @@ namespace JeffersonGoncalves\KnowledgeBase\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Support\Carbon;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleRelationContract;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 
@@ -12,8 +13,8 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
  * @property int $article_id
  * @property int $related_article_id
  * @property int $sort_order
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Article $article
  * @property-read Article $relatedArticle
  */

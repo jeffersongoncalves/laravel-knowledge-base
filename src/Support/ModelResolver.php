@@ -2,6 +2,7 @@
 
 namespace JeffersonGoncalves\KnowledgeBase\Support;
 
+use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
@@ -14,31 +15,31 @@ class ModelResolver
     /** @var array<string, string> */
     protected static array $cache = [];
 
-    /** @return class-string<\Illuminate\Database\Eloquent\Model&ArticleContract> */
+    /** @return class-string<Model&ArticleContract> */
     public static function article(): string
     {
         return static::resolve('article', ArticleContract::class);
     }
 
-    /** @return class-string<\Illuminate\Database\Eloquent\Model&CategoryContract> */
+    /** @return class-string<Model&CategoryContract> */
     public static function category(): string
     {
         return static::resolve('category', CategoryContract::class);
     }
 
-    /** @return class-string<\Illuminate\Database\Eloquent\Model&ArticleVersionContract> */
+    /** @return class-string<Model&ArticleVersionContract> */
     public static function articleVersion(): string
     {
         return static::resolve('article_version', ArticleVersionContract::class);
     }
 
-    /** @return class-string<\Illuminate\Database\Eloquent\Model&ArticleFeedbackContract> */
+    /** @return class-string<Model&ArticleFeedbackContract> */
     public static function articleFeedback(): string
     {
         return static::resolve('article_feedback', ArticleFeedbackContract::class);
     }
 
-    /** @return class-string<\Illuminate\Database\Eloquent\Model&ArticleRelationContract> */
+    /** @return class-string<Model&ArticleRelationContract> */
     public static function articleRelation(): string
     {
         return static::resolve('article_relation', ArticleRelationContract::class);

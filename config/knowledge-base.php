@@ -1,5 +1,11 @@
 <?php
 
+use JeffersonGoncalves\KnowledgeBase\Models\Article;
+use JeffersonGoncalves\KnowledgeBase\Models\ArticleFeedback;
+use JeffersonGoncalves\KnowledgeBase\Models\ArticleRelation;
+use JeffersonGoncalves\KnowledgeBase\Models\ArticleVersion;
+use JeffersonGoncalves\KnowledgeBase\Models\Category;
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -24,11 +30,11 @@ return [
     |
     */
     'models' => [
-        'article' => \JeffersonGoncalves\KnowledgeBase\Models\Article::class,
-        'category' => \JeffersonGoncalves\KnowledgeBase\Models\Category::class,
-        'article_version' => \JeffersonGoncalves\KnowledgeBase\Models\ArticleVersion::class,
-        'article_feedback' => \JeffersonGoncalves\KnowledgeBase\Models\ArticleFeedback::class,
-        'article_relation' => \JeffersonGoncalves\KnowledgeBase\Models\ArticleRelation::class,
+        'article' => Article::class,
+        'category' => Category::class,
+        'article_version' => ArticleVersion::class,
+        'article_feedback' => ArticleFeedback::class,
+        'article_relation' => ArticleRelation::class,
     ],
 
     /*

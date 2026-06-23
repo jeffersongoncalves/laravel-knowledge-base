@@ -1,9 +1,10 @@
 <?php
 
 use JeffersonGoncalves\KnowledgeBase\Models\Category;
+use JeffersonGoncalves\KnowledgeBase\Tests\Fixtures\User;
 
 beforeEach(function () {
-    \JeffersonGoncalves\KnowledgeBase\Tests\Fixtures\User::createTable();
+    User::createTable();
 });
 
 it('can create a category', function () {

@@ -1,6 +1,7 @@
 <?php
 
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
+use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticleCreated;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticleFeedbackReceived;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticlePublished;
@@ -257,5 +258,175 @@ describe('Search', function () {
         ]);
 
         expect($results)->toHaveCount(1);
+    });
+
+    it('matches against article content', function () {
+        $article = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'Unrelated Title',
+            'slug' => 'unrelated-title',
+            'content' => 'A deep dive into PHPStan static analysis.',
+        ], $this->user);
+        $this->service->publishArticle($article);
+
+        $results = $this->service->search('PHPStan');
+
+        expect($results)->toHaveCount(1);
+        expect($results->first()->slug)->toBe('unrelated-title');
+    });
+
+    it('excludes internal articles for anonymous search by default', function () {
+        $public = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'Public Secret Topic',
+            'slug' => 'public-secret-topic',
+            'content' => 'Secret content for everyone.',
+            'visibility' => ArticleVisibility::Public,
+        ], $this->user);
+        $this->service->publishArticle($public);
+
+        $internal = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'Internal Secret Topic',
+            'slug' => 'internal-secret-topic',
+            'content' => 'Secret content for staff only.',
+            'visibility' => ArticleVisibility::Internal,
+        ], $this->user);
+        $this->service->publishArticle($internal);
+
+        $results = $this->service->search('Secret');
+
+        expect($results)->toHaveCount(1);
+        expect($results->first()->visibility)->toBe(ArticleVisibility::Public);
+    });
+
+    it('includes internal articles when explicitly opted in', function () {
+        $public = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'Public Secret Topic',
+            'slug' => 'public-secret-topic',
+            'content' => 'Secret content for everyone.',
+            'visibility' => ArticleVisibility::Public,
+        ], $this->user);
+        $this->service->publishArticle($public);
+
+        $internal = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'Internal Secret Topic',
+            'slug' => 'internal-secret-topic',
+            'content' => 'Secret content for staff only.',
+            'visibility' => ArticleVisibility::Internal,
+        ], $this->user);
+        $this->service->publishArticle($internal);
+
+        $all = $this->service->search('Secret', ['include_internal' => true]);
+        expect($all)->toHaveCount(2);
+
+        $onlyInternal = $this->service->search('Secret', ['visibility' => ArticleVisibility::Internal]);
+        expect($onlyInternal)->toHaveCount(1);
+        expect($onlyInternal->first()->visibility)->toBe(ArticleVisibility::Internal);
+    });
+
+    it('respects the result limit', function () {
+        foreach (range(1, 5) as $i) {
+            $article = $this->service->createArticle([
+                'category_id' => $this->category->id,
+                'title' => "Limited Article {$i}",
+                'slug' => "limited-article-{$i}",
+                'content' => 'Limited searchable content.',
+            ], $this->user);
+            $this->service->publishArticle($article);
+        }
+
+        $results = $this->service->search('Limited', ['limit' => 2]);
+
+        expect($results)->toHaveCount(2);
+    });
+
+    it('escapes wildcard characters in the query', function () {
+        $article = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'Plain title without wildcards',
+            'slug' => 'plain-title',
+            'content' => 'Just regular content.',
+        ], $this->user);
+        $this->service->publishArticle($article);
+
+        // A bare "%" would match everything if not escaped.
+        $results = $this->service->search('%');
+
+        expect($results)->toHaveCount(0);
+    });
+});
+
+describe('Configuration behaviour', function () {
+    it('auto-generates a unique slug when none is provided', function () {
+        $first = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'Same Title',
+            'content' => 'First content.',
+        ], $this->user);
+
+        $second = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'Same Title',
+            'content' => 'Second content.',
+        ], $this->user);
+
+        expect($first->slug)->toBe('same-title');
+        expect($second->slug)->toBe('same-title-1');
+    });
+
+    it('applies the default visibility from config', function () {
+        config(['knowledge-base.default_visibility' => 'internal']);
+
+        $article = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'Defaults To Internal',
+            'content' => 'Content.',
+        ], $this->user);
+
+        expect($article->visibility)->toBe(ArticleVisibility::Internal);
+
+        config(['knowledge-base.default_visibility' => 'public']);
+    });
+
+    it('throws when feedback is disabled', function () {
+        config(['knowledge-base.feedback_enabled' => false]);
+
+        $article = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'No Feedback',
+            'content' => 'Content.',
+        ], $this->user);
+
+        expect(fn () => $this->service->addFeedback($article, true))
+            ->toThrow(RuntimeException::class);
+
+        config(['knowledge-base.feedback_enabled' => true]);
+    });
+
+    it('does not track views when disabled', function () {
+        config(['knowledge-base.track_views' => false]);
+
+        $article = $this->service->createArticle([
+            'category_id' => $this->category->id,
+            'title' => 'No View Tracking',
+            'content' => 'Content.',
+        ], $this->user);
+
+        $article->incrementViewCount();
+
+        expect($article->fresh()->view_count)->toBe(0);
+
+        config(['knowledge-base.track_views' => true]);
+    });
+
+    it('auto-generates a unique slug for categories', function () {
+        $first = $this->service->createCategory(['name' => 'Duplicate Category']);
+        $second = $this->service->createCategory(['name' => 'Duplicate Category']);
+
+        expect($first->slug)->toBe('duplicate-category');
+        expect($second->slug)->toBe('duplicate-category-1');
     });
 });

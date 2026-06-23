@@ -3,6 +3,7 @@
 namespace JeffersonGoncalves\KnowledgeBase\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
@@ -34,25 +36,32 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
  * @property int $view_count
  * @property int $helpful_count
  * @property int $not_helpful_count
- * @property \Illuminate\Support\Carbon|null $published_at
+ * @property Carbon|null $published_at
  * @property int $current_version
  * @property array|null $metadata
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
  * @property-read Category $category
- * @property-read \Illuminate\Database\Eloquent\Model $author
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ArticleVersion> $versions
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ArticleFeedback> $feedback
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Article> $relatedArticles
+ * @property-read Model $author
+ * @property-read Collection<int, ArticleVersion> $versions
+ * @property-read Collection<int, ArticleFeedback> $feedback
+ * @property-read Collection<int, Article> $relatedArticles
  */
 class Article extends Model implements ArticleContract
 {
     use HasFactory;
     use SoftDeletes;
 
+    /**
+     * Mass-assignable attributes.
+     *
+     * Sensitive columns (uuid, view_count, helpful_count, not_helpful_count and
+     * current_version) are intentionally excluded. They must only ever be set by
+     * internal package logic (UUID generation, counter increments and version
+     * bumps), never through user-supplied input.
+     */
     protected $fillable = [
-        'uuid',
         'category_id',
         'title',
         'slug',
@@ -65,11 +74,7 @@ class Article extends Model implements ArticleContract
         'seo_title',
         'seo_description',
         'seo_keywords',
-        'view_count',
-        'helpful_count',
-        'not_helpful_count',
         'published_at',
-        'current_version',
         'metadata',
     ];
 
@@ -156,6 +161,10 @@ class Article extends Model implements ArticleContract
 
     public function incrementViewCount(): void
     {
+        if (! config('knowledge-base.track_views', true)) {
+            return;
+        }
+
         $this->increment('view_count');
     }
 
