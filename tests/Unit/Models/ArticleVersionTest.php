@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Schema;
 use JeffersonGoncalves\KnowledgeBase\Models\Article;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleVersion;
 use JeffersonGoncalves\KnowledgeBase\Models\Category;
@@ -67,21 +67,8 @@ it('casts version number to integer', function () {
 });
 
 it('enforces unique version number per article', function () {
-    $this->article->versions()->create([
-        'version_number' => 1,
-        'title' => 'A',
-        'content' => 'A',
-        'editor_type' => $this->user->getMorphClass(),
-        'editor_id' => $this->user->id,
-        'created_at' => now(),
-    ]);
+    $unique = collect(Schema::getIndexes('kb_article_versions'))
+        ->contains(fn ($index) => $index['unique'] && $index['columns'] === ['article_id', 'version_number']);
 
-    expect(fn () => $this->article->versions()->create([
-        'version_number' => 1,
-        'title' => 'B',
-        'content' => 'B',
-        'editor_type' => $this->user->getMorphClass(),
-        'editor_id' => $this->user->id,
-        'created_at' => now(),
-    ]))->toThrow(QueryException::class);
+    expect($unique)->toBeTrue();
 });

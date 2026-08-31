@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Schema;
 use JeffersonGoncalves\KnowledgeBase\Models\Article;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleRelation;
 use JeffersonGoncalves\KnowledgeBase\Models\Category;
@@ -50,13 +50,8 @@ it('exposes article and related article relations on the pivot', function () {
 });
 
 it('enforces uniqueness of an article relation pair', function () {
-    $article = ($this->makeArticle)();
-    $related = ($this->makeArticle)();
+    $unique = collect(Schema::getIndexes('kb_article_relations'))
+        ->contains(fn ($index) => $index['unique'] && $index['columns'] === ['article_id', 'related_article_id']);
 
-    $article->relatedArticles()->attach($related->id);
-
-    expect(fn () => ArticleRelation::create([
-        'article_id' => $article->id,
-        'related_article_id' => $related->id,
-    ]))->toThrow(QueryException::class);
+    expect($unique)->toBeTrue();
 });
