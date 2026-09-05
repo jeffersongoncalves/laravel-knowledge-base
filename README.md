@@ -6,6 +6,8 @@
 
 # Laravel Knowledge Base
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jeffersongoncalves)
+
 A Laravel package for building knowledge bases with articles, categories, versioning, feedback, and search.
 
 ## Features
