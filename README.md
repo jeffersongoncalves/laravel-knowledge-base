@@ -11,6 +11,8 @@
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/jeffersongoncalves/laravel-knowledge-base/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/jeffersongoncalves/laravel-knowledge-base/actions?query=workflow%3A"Fix+PHP+code+styling"+branch%3Amain)
 [![PHPStan](https://img.shields.io/github/actions/workflow/status/jeffersongoncalves/laravel-knowledge-base/phpstan.yml?branch=main&label=PHPStan&style=flat-square)](https://github.com/jeffersongoncalves/laravel-knowledge-base/actions?query=workflow%3APHPStan+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/jeffersongoncalves/laravel-knowledge-base.svg?style=flat-square)](https://packagist.org/packages/jeffersongoncalves/laravel-knowledge-base)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jeffersongoncalves)
+
 
 A Laravel package for building knowledge bases with articles, categories, versioning, feedback, and search.
 
