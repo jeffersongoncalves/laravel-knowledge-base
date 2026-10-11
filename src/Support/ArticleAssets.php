@@ -54,7 +54,7 @@ class ArticleAssets
      * @throws InvalidArgumentException when the language is not configured
      * @throws ValidationException when the file's type or size is not allowed
      */
-    public function store(Model&ArticleContract $article, UploadedFile|string $file, AssetKind $kind, ?string $locale = null): ArticleAssetContract
+    public function store(Model&ArticleContract $article, UploadedFile|string $file, AssetKind $kind, ?string $locale = null): Model&ArticleAssetContract
     {
         $scope = $this->scopeLocale($locale);
         $source = $file instanceof UploadedFile ? $file : new File($file);
