@@ -23,7 +23,7 @@ A Laravel package for building knowledge bases with articles, categories, versio
 - **Article Versioning** — Automatic version history tracking with editor attribution and change notes
 - **User Feedback** — Helpful/not helpful voting with optional comments, supports authenticated and anonymous users
 - **Related Articles** — Many-to-many article relationships with sort ordering
-- **Full-Text Search** — Database-powered search across published articles by title and content
+- **Full-Text Search** — Database-powered, language-aware search across publicly visible articles by title and content
 - **SEO Fields** — Built-in SEO title, description, and keywords per article
 - **Customizable Models** — Override any model via config while maintaining contract compliance
 - **Table Prefix** — Configurable table prefix to avoid naming collisions (default: `kb_`)
@@ -107,7 +107,10 @@ Override any model to extend the default behavior. Custom models must implement 
 'locales' => ['en'],                // languages the knowledge base serves
 'default_locale' => 'en',           // authoritative language; must be in locales
 'missing_translation' => 'fallback', // 'fallback' or 'hide'
+'search_languages' => ['en' => 'english', 'de' => 'german'], // PostgreSQL text-search config per language
 ```
+
+See [Localization](#localization) for details.
 
 ### Search
 
@@ -356,13 +359,22 @@ Categories always have a version in `default_locale`; their main row mirrors it.
 
 **Slugs.** A slug belongs to one article or category: the same article may use the same slug in several of its languages, but two different articles may never share a slug in any language. Saving a conflicting slug or a second version in the same language is rejected.
 
-**Outdated versions.** Saving the authoritative version can mark every other version as outdated; readers still see outdated versions.
+**Editing a language.** `updateArticle()` edits the authoritative version; `updateArticleTranslation()` edits one other language. Both record a history entry tagged with the edited language.
 
 ```php
-$article->flagOtherTranslationsOutdated(); // mark the other languages
-$translation->markUpToDate();              // editing or confirming a version clears it
+$service->updateArticleTranslation($article, 'de', ['title' => 'Passwort ändern'], $editor, 'Wording');
 
 $article->versions()->forLocale('de')->get(); // the history of one language only
+```
+
+**Outdated versions.** Saving the authoritative version can mark every other version as outdated (off by default, so typo fixes flag nothing); readers still see outdated versions.
+
+```php
+$service->updateArticle($article, $data, $editor, 'Rewrote step 2', flagOtherLocalesOutdated: true);
+
+$article->flagOtherTranslationsOutdated();   // or mark the other languages directly
+$translation->markUpToDate();                // editing or confirming a version clears it
+$service->outdatedTranslations('de');        // the outdated versions of one language
 ```
 
 Run `php artisan kb:verify-translations` to report any drift between a main row and its authoritative version.
@@ -386,7 +398,7 @@ $resolved = $resolver->resolveCategoryBySlug($categorySlug, 'de');
 
 Pass `publicOnly: false` for staff lookups that may see internal content.
 
-> **Before migrating an existing knowledge base**, set `default_locale` to the language the existing content is written in. The upgrade tags every existing article and category with that language, so a wrong value mislabels all existing content. See the migration note below.
+> **Before migrating an existing knowledge base**, set `default_locale` to the language the existing content is written in. The upgrade tags every existing article and category with that language, so a wrong value mislabels all existing content. The migration stops before writing anything when `default_locale` is not one of `locales`.
 
 ### Collections
 
@@ -427,17 +439,17 @@ use JeffersonGoncalves\KnowledgeBase\Support\HelpCenter;
 
 $help = app(HelpCenter::class);
 
-$tree = $help->categories('de');                              // list<CategoryNode>, with article counts
-$category = $help->category('abrechnung', 'de');        // ?CategoryPage
-$article = $help->article($slug, 'de');                       // ?ArticlePage
+$tree = $help->categories('de');                          // list<CategoryNode>, with article counts
+$category = $help->category('abrechnung', 'de');          // ?CategoryPage
+$article = $help->article($slug, 'de');                   // ?ArticlePage
 $collection = $help->collection('haeufige-fragen', 'de'); // ?CollectionPage
-$results = $help->search('reset', 'de', 20);                    // public, language-aware search results
+$results = $help->search('reset', 'de', 20);              // public, language-aware search results
 ```
 
 - An `ArticlePage` carries the served version (`translation`), the served language (`locale`), `isFallback` (served ≠ requested), `redirectSlug` (set when the requested slug is not the served version's slug), `alternates` (locale ⇒ slug of every language the article can actually be read in), `breadcrumb` and `related`.
 - A `CategoryPage` carries the resolved category, its `children` and its `articles`.
 - A `CollectionPage` carries the resolved collection and its public `articles` in order.
-- A `CategoryNode` carries the resolved category, a slug and name in the served language, its public article count (`articlesCount`) and its `children`.
+- A `CategoryNode` carries the resolved category, a slug and name in the served language, its public article count (`articlesCount`, counting only the articles a reader of that language is served) and its `children`.
 
 A minimal public article page built on the API:
 
@@ -459,7 +471,7 @@ Route::get('/{locale}/help/articles/{slug}', function (string $locale, string $s
 });
 ```
 
-The package registers no routes or views (it stays headless); the app renders the pages, following the `help-center-reference` contract (URLs, redirects, fallback notice, `hreflang` alternates, 404s).
+The package registers no routes or views (it stays headless); the app renders the pages, including redirects, a fallback notice when `isFallback` is true, `hreflang` alternates from `alternates`, and 404s.
 
 ### Extending Models
 
@@ -531,6 +543,13 @@ class SendArticleNotification
 |-------|-----------|---------------|
 | `public` | Public | Público |
 | `internal` | Internal | Interno |
+
+### TranslationStatus
+
+| Value | Label (en) | Label (pt_BR) |
+|-------|-----------|---------------|
+| `draft` | Draft | Rascunho |
+| `published` | Published | Publicado |
 
 ```php
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
