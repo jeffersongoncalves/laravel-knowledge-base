@@ -27,7 +27,7 @@ A Laravel package for building knowledge bases with articles, categories, versio
 - **SEO Fields** — Built-in SEO title, description, and keywords per article
 - **Customizable Models** — Override any model via config while maintaining contract compliance
 - **Table Prefix** — Configurable table prefix to avoid naming collisions (default: `kb_`)
-- **Translations** — English and Brazilian Portuguese out of the box
+- **Translations** — 19 languages out of the box: ar, az, de, en, es, fa, fr, hi, it, ja, nl, pl, pt, pt_BR, ru, tr, uk, uz, zh_CN
 - **Public Visibility** — One rule for what customers may see: published, public, and in a public, active category with public ancestors
 - **Content Localization** — One version per configured language with fallback, per-language slugs and an authoritative language
 - **Collections (FAQ)** — Curated, ordered, translatable lists of articles such as an FAQ
