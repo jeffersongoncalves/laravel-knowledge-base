@@ -218,15 +218,6 @@ describe('Language-aware slugs', function () {
         expect($article->fresh()->translation('en')->title)->toBe('Password reset (updated)');
     });
 
-    it('never fails on a slug conflict when the authoritative language changes', function () {
-        $article = localizedArticle(['slug' => 'reset']);
-        addGermanVersion($article, 'published', 'passwort-zuruecksetzen');
-
-        $article->changeSourceLocale('de');
-
-        expect($article->fresh())->slug->toBe('passwort-zuruecksetzen');
-    });
-
     it('returns the requested language and its slug when the given slug is from another language', function () {
         $article = localizedArticle(['slug' => 'reset']);
         addGermanVersion($article, 'published', 'passwort-zuruecksetzen');

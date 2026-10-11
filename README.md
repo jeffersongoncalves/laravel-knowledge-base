@@ -105,7 +105,7 @@ Override any model to extend the default behavior. Custom models must implement 
 
 ```php
 'locales' => ['en'],                // languages the knowledge base serves
-'default_locale' => 'en',           // authoritative language; must be in locales
+'default_locale' => 'en',           // always the authoritative language; must be in locales
 'missing_translation' => 'fallback', // 'fallback' or 'hide'
 'search_languages' => ['en' => 'english', 'de' => 'german'], // PostgreSQL text-search config per language
 ```
@@ -337,7 +337,7 @@ The knowledge base can serve its articles and categories in several languages. C
 ```php
 // config/knowledge-base.php
 'locales' => ['en', 'de'],        // languages the knowledge base serves
-'default_locale' => 'en',         // authoritative language for new content; must be in locales
+'default_locale' => 'en',         // always the authoritative language; must be in locales
 'missing_translation' => 'fallback', // 'fallback' (default) or 'hide'
 'search_languages' => [           // PostgreSQL text-search configuration per language
     'en' => 'english',
@@ -358,15 +358,16 @@ $german = $article->translations()->create([
 ]);
 ```
 
-**The authoritative language.** Every article has exactly one authoritative language, defaulting to `default_locale`, and always has a version in it. Its version is mirrored onto the article's own `title`, `slug`, `content`, `excerpt` and SEO columns, in both directions: writing those columns updates the authoritative version, and editing the authoritative version updates those columns. This is what keeps existing code that reads `$article->title` working.
+**The authoritative language.** Every article's authoritative language is always `default_locale`, exactly as for categories and collections: it cannot be chosen or changed per article, and every article always has a version in it. That version is mirrored onto the article's own `title`, `slug`, `content`, `excerpt` and SEO columns, in both directions: writing those columns updates the authoritative version, and editing the authoritative version updates those columns. This is what keeps existing code that reads `$article->title` working.
 
 ```php
-$article->source_locale;                      // 'en'
+$article->authoritativeLocale();              // 'en' (the configured default)
 $article->authoritativeTranslation()->title;  // the mirrored title
-$article->changeSourceLocale('de');           // only to a language it has a version in
 ```
 
-Categories always have a version in `default_locale`; their main row mirrors it.
+Because the default language is authoritative for every article, changing `default_locale` later requires every article to have a version in the new language before the site can show it. Make sure the content is translated first; the `remove_kb_article_source_locale` migration refuses to run and names the articles that are missing a default-language version.
+
+Categories and collections always have a version in `default_locale` too; their main row mirrors it.
 
 **Slugs.** A slug belongs to one article or category: the same article may use the same slug in several of its languages, but two different articles may never share a slug in any language. Saving a conflicting slug or a second version in the same language is rejected.
 

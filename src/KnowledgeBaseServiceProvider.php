@@ -35,6 +35,7 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
                 'create_kb_article_relations_table',
                 'add_kb_content_localization',
                 'add_kb_collections',
+                'remove_kb_article_source_locale',
             ]);
     }
 

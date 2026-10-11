@@ -106,12 +106,8 @@ class ArticleTranslation extends Model implements ArticleTranslationContract
 
     protected function authoritativeLocaleValue(): string
     {
-        $owner = $this->relationLoaded('article') ? $this->getRelation('article') : $this->article()->first();
-
-        if ($owner instanceof Model && $owner->getAttribute('source_locale')) {
-            return (string) $owner->getAttribute('source_locale');
-        }
-
+        // The authoritative version is always the configured default language
+        // (see design D1); the article no longer chooses its own.
         return Locales::default();
     }
 }
