@@ -3,11 +3,13 @@
 namespace JeffersonGoncalves\KnowledgeBase\Services;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticleCreated;
@@ -16,6 +18,7 @@ use JeffersonGoncalves\KnowledgeBase\Events\ArticlePublished;
 use JeffersonGoncalves\KnowledgeBase\Models\Article;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleTranslationContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
@@ -50,6 +53,7 @@ class KnowledgeBaseService
             if (config('knowledge-base.versioning_enabled', true)) {
                 $article->versions()->create([
                     'version_number' => 1,
+                    'locale' => $article->authoritativeLocale(),
                     'title' => $article->title,
                     'content' => $article->content,
                     'excerpt' => $article->excerpt,
@@ -68,9 +72,9 @@ class KnowledgeBaseService
         });
     }
 
-    public function updateArticle(Model&ArticleContract $article, array $data, Model $editor, ?string $changeNotes = null): Model
+    public function updateArticle(Model&ArticleContract $article, array $data, Model $editor, ?string $changeNotes = null, bool $flagOtherLocalesOutdated = false): Model
     {
-        return DB::transaction(function () use ($article, $data, $editor, $changeNotes) {
+        return DB::transaction(function () use ($article, $data, $editor, $changeNotes, $flagOtherLocalesOutdated) {
             /** @var Article $article */
             $article->fill($data);
             $article->save();
@@ -80,6 +84,7 @@ class KnowledgeBaseService
 
                 $article->versions()->create([
                     'version_number' => $newVersion,
+                    'locale' => $article->authoritativeLocale(),
                     'title' => $article->title,
                     'content' => $article->content,
                     'excerpt' => $article->excerpt,
@@ -94,8 +99,74 @@ class KnowledgeBaseService
                 $article->save();
             }
 
+            if ($flagOtherLocalesOutdated) {
+                $article->flagOtherTranslationsOutdated();
+            }
+
             return $article->fresh();
         });
+    }
+
+    /**
+     * Edit one language's version and record the history entry for that
+     * language (see design D5 and D6). Editing clears its outdated flag.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function updateArticleTranslation(Model&ArticleContract $article, string $locale, array $data, Model $editor, ?string $changeNotes = null): Model
+    {
+        return DB::transaction(function () use ($article, $locale, $data, $editor, $changeNotes) {
+            /** @var Article $article */
+            $translation = $article->translation($locale);
+
+            if (! $translation instanceof Model) {
+                throw new InvalidArgumentException("The article has no version in [{$locale}].");
+            }
+
+            $translation->fill($data);
+            $translation->save();
+
+            if (config('knowledge-base.versioning_enabled', true)) {
+                $newVersion = $article->current_version + 1;
+
+                $article->versions()->create([
+                    'version_number' => $newVersion,
+                    'locale' => $locale,
+                    'title' => $translation->getAttribute('title'),
+                    'content' => $translation->getAttribute('content'),
+                    'excerpt' => $translation->getAttribute('excerpt'),
+                    'editor_type' => $editor->getMorphClass(),
+                    'editor_id' => $editor->getKey(),
+                    'change_notes' => $changeNotes,
+                    'created_at' => now(),
+                ]);
+
+                // Refresh first: saving the translation may have mirrored new
+                // values onto the main row, and saving a stale model would
+                // overwrite them.
+                $article->refresh();
+                $article->current_version = $newVersion;
+                $article->saveQuietly();
+            }
+
+            return $translation->fresh();
+        });
+    }
+
+    /**
+     * The article versions that are flagged outdated in a language (see design
+     * D5).
+     *
+     * @return EloquentCollection<int, Model&ArticleTranslationContract>
+     */
+    public function outdatedTranslations(string $locale): EloquentCollection
+    {
+        $translationClass = ModelResolver::articleTranslation();
+
+        return $translationClass::query()
+            ->where('locale', $locale)
+            ->where('is_outdated', true)
+            ->get();
     }
 
     public function publishArticle(Model&ArticleContract $article): Model

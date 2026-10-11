@@ -341,6 +341,8 @@ Categories always have a version in `default_locale`; their main row mirrors it.
 ```php
 $article->flagOtherTranslationsOutdated(); // mark the other languages
 $translation->markUpToDate();              // editing or confirming a version clears it
+
+$article->versions()->forLocale('de')->get(); // the history of one language only
 ```
 
 Run `php artisan kb:verify-translations` to report any drift between a main row and its authoritative version.
