@@ -345,6 +345,25 @@ $translation->markUpToDate();              // editing or confirming a version cl
 
 Run `php artisan kb:verify-translations` to report any drift between a main row and its authoritative version.
 
+**Serving a language.** `TranslationResolver` is the one place that decides what a reader gets, applying the article's status, the visibility rules and `missing_translation` (fallback serves the authoritative version, hide serves nothing). It reports which language was actually served, plus that version's slug, so a page can redirect.
+
+```php
+use JeffersonGoncalves\KnowledgeBase\Support\TranslationResolver;
+
+$resolver = app(TranslationResolver::class);
+
+$resolved = $resolver->resolveArticleBySlug('reset', 'de');
+// $resolved->locale       // 'de', or 'en' when it fell back
+// $resolved->slug         // the served version's slug (may differ from 'reset')
+// $resolved->translation  // the translation that was served
+
+$resolved = $resolver->resolveArticle($article, 'de');
+$resolved = $resolver->resolveCategory($category, 'de');
+$resolved = $resolver->resolveCategoryBySlug($categorySlug, 'de');
+```
+
+Pass `publicOnly: false` for staff lookups that may see internal content.
+
 > **Before migrating an existing knowledge base**, set `default_locale` to the language the existing content is written in. The upgrade tags every existing article and category with that language, so a wrong value mislabels all existing content. See the migration note below.
 
 ### Extending Models
