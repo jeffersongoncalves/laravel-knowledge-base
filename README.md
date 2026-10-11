@@ -119,6 +119,17 @@ See [Localization](#localization) for details.
 'search_results_limit' => 20,       // max results per search
 ```
 
+### Attachments
+
+```php
+'attachments' => [
+    'disk' => env('KB_ATTACHMENTS_DISK', 'public'),                            // a publicly readable disk
+    'directory' => env('KB_ATTACHMENTS_DIRECTORY', 'knowledge-base/attachments'), // all knowledge base files live here
+],
+```
+
+Where files that editors add to article content (such as images) are stored. Admin panels and editors built on the knowledge base, like the Filament plugin, read this setting. With the default `public` disk, run `php artisan storage:link` once so the files are reachable from the web; in production you can switch to a cloud disk with `KB_ATTACHMENTS_DISK=s3`. Changing the directory later does not move existing files.
+
 ## Usage
 
 ### Using the Service

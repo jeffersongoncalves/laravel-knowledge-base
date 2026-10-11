@@ -96,4 +96,25 @@ return [
     */
     'search_engine' => 'database',
     'search_results_limit' => 20,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Attachments
+    |--------------------------------------------------------------------------
+    |
+    | Where files that editors add to article content (such as images in the
+    | rich text editor) are stored. Everything lives under one directory, so
+    | the knowledge base's files stay together and apart from the rest of
+    | the app. The disk must be publicly readable, since readers see these
+    | files: use 'public' (run `php artisan storage:link` once) or a cloud
+    | disk such as 's3'.
+    |
+    | Changing the directory later does not move existing files, and content
+    | that already points to them keeps the old location.
+    |
+    */
+    'attachments' => [
+        'disk' => env('KB_ATTACHMENTS_DISK', 'public'),
+        'directory' => env('KB_ATTACHMENTS_DIRECTORY', 'knowledge-base/attachments'),
+    ],
 ];
