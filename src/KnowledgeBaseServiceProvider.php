@@ -26,6 +26,7 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
                 'create_kb_article_versions_table',
                 'create_kb_article_feedback_table',
                 'create_kb_article_relations_table',
+                'add_kb_content_localization',
             ]);
     }
 

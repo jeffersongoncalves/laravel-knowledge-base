@@ -52,6 +52,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Locales
+    |--------------------------------------------------------------------------
+    |
+    | The languages the knowledge base serves. Articles and categories have at
+    | most one version per configured language. `default_locale` is the
+    | authoritative language new content defaults to and the language existing
+    | content is tagged with during the upgrade; it must be part of `locales`.
+    |
+    | `missing_translation` decides what a reader gets when a language has no
+    | readable version: 'fallback' serves the authoritative version, 'hide'
+    | serves nothing. Any other value is rejected.
+    |
+    | `search_languages` maps a locale to the PostgreSQL text-search
+    | configuration used to stem it; unknown locales use 'simple'. MySQL
+    | ignores it.
+    |
+    */
+    'locales' => ['en'],
+    'default_locale' => 'en',
+    'missing_translation' => 'fallback',
+    'search_languages' => [
+        'en' => 'english',
+        'de' => 'german',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Search
     |--------------------------------------------------------------------------
     |
