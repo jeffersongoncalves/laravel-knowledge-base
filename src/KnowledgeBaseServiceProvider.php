@@ -2,6 +2,7 @@
 
 namespace JeffersonGoncalves\KnowledgeBase;
 
+use JeffersonGoncalves\KnowledgeBase\Commands\PruneAssetsCommand;
 use JeffersonGoncalves\KnowledgeBase\Commands\VerifyTranslationsCommand;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleAssetContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
@@ -29,6 +30,7 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasCommand(VerifyTranslationsCommand::class)
+            ->hasCommand(PruneAssetsCommand::class)
             ->hasMigrations([
                 'create_kb_categories_table',
                 'create_kb_articles_table',

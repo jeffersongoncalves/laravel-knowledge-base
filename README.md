@@ -29,7 +29,8 @@ A Laravel package for building knowledge bases with articles, categories, versio
 - **Table Prefix** — Configurable table prefix to avoid naming collisions (default: `kb_`)
 - **Translations** — 19 languages out of the box: ar, az, de, en, es, fa, fr, hi, it, ja, nl, pl, pt, pt_BR, ru, tr, uk, uz, zh_CN
 - **Public Visibility** — One rule for what customers may see: published, public, and in a public, active category with public ancestors
-- **Content Localization** — One version per configured language with fallback, per-language slugs and an authoritative language
+- **Content Localization** — One version per configured language with fallback, per-language slugs and the default language as the authoritative one
+- **Article Assets** — Images and files owned by an article, one folder per article, referenced by ID and resolved to current URLs at render time, with usage and broken-reference reporting and a prune command
 - **Collections (FAQ)** — Curated, ordered, translatable lists of articles such as an FAQ
 - **Help Center API** — One public-only, language-aware read API for building help pages: category tree, category, article, collection and search
 
@@ -123,12 +124,20 @@ See [Localization](#localization) for details.
 
 ```php
 'attachments' => [
-    'disk' => env('KB_ATTACHMENTS_DISK', 'public'),                            // a publicly readable disk
-    'directory' => env('KB_ATTACHMENTS_DIRECTORY', 'knowledge-base/attachments'), // all knowledge base files live here
+    'disk' => env('KB_ATTACHMENTS_DISK', 'public'),              // a publicly readable disk
+    'directory' => env('KB_ATTACHMENTS_DIRECTORY', 'knowledge-base'), // all knowledge base files live here
+    'images' => [
+        'accepted_types' => ['image/jpeg', 'image/png', 'image/webp'],
+        'max_size' => (int) env('KB_ATTACHMENTS_IMAGES_MAX_SIZE', 5120),   // kilobytes
+    ],
+    'files' => [
+        'accepted_types' => ['application/pdf'],
+        'max_size' => (int) env('KB_ATTACHMENTS_FILES_MAX_SIZE', 10240),   // kilobytes
+    ],
 ],
 ```
 
-Where files that editors add to article content (such as images) are stored. Admin panels and editors built on the knowledge base, like the Filament plugin, read this setting. With the default `public` disk, run `php artisan storage:link` once so the files are reachable from the web; in production you can switch to a cloud disk with `KB_ATTACHMENTS_DISK=s3`. Changing the directory later does not move existing files.
+Where the images and files that belong to articles are stored (see [Article Assets](#article-assets)). With the default `public` disk, run `php artisan storage:link` once so the files are reachable from the web; in production you can switch to a cloud disk with `KB_ATTACHMENTS_DISK=s3`. Changing the disk or directory later does not move existing files: each asset remembers the disk and path it was stored on.
 
 ## Usage
 
@@ -365,7 +374,7 @@ $article->authoritativeLocale();              // 'en' (the configured default)
 $article->authoritativeTranslation()->title;  // the mirrored title
 ```
 
-Because the default language is authoritative for every article, changing `default_locale` later requires every article to have a version in the new language before the site can show it. Make sure the content is translated first; the `remove_kb_article_source_locale` migration refuses to run and names the articles that are missing a default-language version.
+Because the default language is authoritative for every article, changing `default_locale` later requires every article to have a version in the new language before the site can show it. Make sure the content is translated first; the built-in upgrade migration refuses to run and names the articles that are missing a default-language version.
 
 Categories and collections always have a version in `default_locale` too; their main row mirrors it.
 
@@ -411,6 +420,49 @@ $resolved = $resolver->resolveCategoryBySlug($categorySlug, 'de');
 Pass `publicOnly: false` for staff lookups that may see internal content.
 
 > **Before migrating an existing knowledge base**, set `default_locale` to the language the existing content is written in. The upgrade tags every existing article and category with that language, so a wrong value mislabels all existing content. The migration stops before writing anything when `default_locale` is not one of `locales`.
+
+### Article Assets
+
+Every image or file an article uses is an **asset** of that article. Content never stores an asset's URL: it refers to the asset by its uuid, and the core builds the URL when the content is shown, so moving the site to another domain or port, or switching disk, never breaks an image.
+
+```php
+use JeffersonGoncalves\KnowledgeBase\Enums\AssetKind;
+use JeffersonGoncalves\KnowledgeBase\Support\ArticleAssets;
+
+$assets = app(ArticleAssets::class);
+
+// Store an upload (or the path to a local file) for an article. Without a
+// language the asset is shared; the default language is stored as shared too.
+$image = $assets->store($article, $request->file('image'), AssetKind::Image);
+$german = $assets->store($article, $request->file('image'), AssetKind::Image, 'de');
+$pdf = $assets->store($article, $request->file('file'), AssetKind::File);
+
+$assets->url($image);                 // the current URL of the asset
+$assets->usage($image);               // ['en', 'de'] — languages whose current content uses it
+$assets->brokenReferences($article);  // ['de' => ['<uuid>']] — deleted assets still referenced
+$assets->delete($image);              // removes the file and the record (allowed while used)
+```
+
+**Storage layout.** Each article owns one folder, named after its never-changing `uuid`, under `{directory}/articles/{uuid}/`, with a `shared/` subfolder for shared assets and one subfolder per language:
+
+```
+knowledge-base/articles/6f1c.../shared/fern-leaf-3fa2c1.jpg
+knowledge-base/articles/6f1c.../de/farn-9b04e2.jpg
+```
+
+A file name is the original name in readable form plus a six-character random code and the extension of the detected type. The uuid keeps the folder stable when the title or slug changes; the random code keeps names unique and URLs unguessable. Copying `knowledge-base/articles/{uuid}` copies everything of that article, in every language.
+
+**Allowed types and sizes.** Each kind has its own accepted types and maximum size (see [Attachments](#attachments)). The type is checked on the file's detected content, not its name, so a PDF renamed to `photo.jpg` is still refused as an image. `image/svg+xml` is not offered by default because SVG can carry scripts; add it to `attachments.images.accepted_types` only if you trust your editors and sanitise the output. `image/avif` and `image/gif` are opt-in the same way. Width and height are read when PHP can read the format, and left empty otherwise.
+
+**Rendering.** Turn stored content into displayable HTML with `resolve()`. For public readers (`forPublic: true`) a reference to an asset that was deleted, or that belongs to another article, is left out (images) or turned into plain text (file links), so a page never shows a broken image or a dead link.
+
+```php
+$html = $assets->resolve($translation->content, $article, forPublic: true);
+```
+
+**Pruning.** `php artisan kb:prune-assets` removes files under `{directory}/articles/` that no asset record knows, and folders whose article no longer exists at all; it reports asset records whose file is missing and keeps unused but valid assets. Add `--dry-run` to list what it would remove without removing anything. A soft-deleted article keeps its folder (it can be restored); the files go when the article is force-deleted.
+
+> **Note:** assets are stored on a publicly readable disk because readers load them. The URLs contain the article uuid and a random code, so they cannot be guessed, but anyone who has a URL can open it. Serving the assets of internal articles from a private disk through signed URLs is a planned follow-up.
 
 ### Collections
 
@@ -585,6 +637,7 @@ All tables use the configured prefix (default: `kb_`):
 | `kb_articles` | Knowledge base articles |
 | `kb_article_translations` | Article title/slug/content per language |
 | `kb_article_versions` | Article version history, per language |
+| `kb_article_assets` | Images and files owned by an article |
 | `kb_article_feedback` | User feedback on articles |
 | `kb_article_relations` | Related articles (pivot) |
 | `kb_collections` | Curated, ordered lists of articles (e.g. an FAQ) |

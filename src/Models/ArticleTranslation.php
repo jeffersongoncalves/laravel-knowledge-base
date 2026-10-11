@@ -69,13 +69,11 @@ class ArticleTranslation extends Model implements ArticleTranslationContract
 
     protected static function booted(): void
     {
-        // Deleting a language version removes that language's assets; the
-        // authoritative version cannot be deleted (design D7).
-        static::deleting(function (ArticleTranslation $translation) {
-            if ($translation->isAuthoritative()) {
-                return;
-            }
-
+        // Deleting a language version removes that language's assets (design
+        // D7). This runs on `deleted` because the trait's `deleting` listener
+        // halts the event chain for the authoritative-version guard, and the
+        // authoritative version can never reach a completed deletion anyway.
+        static::deleted(function (ArticleTranslation $translation) {
             $article = $translation->article()->first();
 
             if ($article instanceof Model && $article instanceof ArticleContract) {
