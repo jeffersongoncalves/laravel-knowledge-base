@@ -10,7 +10,10 @@ use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleTranslationContract
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleVersionContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryTranslationContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CollectionContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CollectionTranslationContract;
 use JeffersonGoncalves\KnowledgeBase\Services\KnowledgeBaseService;
+use JeffersonGoncalves\KnowledgeBase\Support\HelpCenter;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -31,6 +34,7 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
                 'create_kb_article_feedback_table',
                 'create_kb_article_relations_table',
                 'add_kb_content_localization',
+                'add_kb_collections',
             ]);
     }
 
@@ -50,6 +54,8 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
             ArticleRelationContract::class => 'article_relation',
             ArticleTranslationContract::class => 'article_translation',
             CategoryTranslationContract::class => 'category_translation',
+            CollectionContract::class => 'collection',
+            CollectionTranslationContract::class => 'collection_translation',
         ];
 
         foreach ($bindings as $contract => $configKey) {
@@ -60,5 +66,6 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
     protected function registerServices(): void
     {
         $this->app->singleton(KnowledgeBaseService::class);
+        $this->app->singleton(HelpCenter::class);
     }
 }

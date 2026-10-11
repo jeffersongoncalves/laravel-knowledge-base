@@ -7,6 +7,8 @@ use JeffersonGoncalves\KnowledgeBase\Models\ArticleTranslation;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleVersion;
 use JeffersonGoncalves\KnowledgeBase\Models\Category;
 use JeffersonGoncalves\KnowledgeBase\Models\CategoryTranslation;
+use JeffersonGoncalves\KnowledgeBase\Models\Collection;
+use JeffersonGoncalves\KnowledgeBase\Models\CollectionTranslation;
 
 return [
     /*
@@ -39,6 +41,8 @@ return [
         'article_relation' => ArticleRelation::class,
         'article_translation' => ArticleTranslation::class,
         'category_translation' => CategoryTranslation::class,
+        'collection' => Collection::class,
+        'collection_translation' => CollectionTranslation::class,
     ],
 
     /*
