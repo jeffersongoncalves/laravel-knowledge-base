@@ -4,6 +4,7 @@ namespace JeffersonGoncalves\KnowledgeBase\Support;
 
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleAssetContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleRelationContract;
@@ -71,6 +72,12 @@ class ModelResolver
     public static function articleRelation(): string
     {
         return static::resolve('article_relation', ArticleRelationContract::class);
+    }
+
+    /** @return class-string<Model&ArticleAssetContract> */
+    public static function articleAsset(): string
+    {
+        return static::resolve('article_asset', ArticleAssetContract::class);
     }
 
     /**

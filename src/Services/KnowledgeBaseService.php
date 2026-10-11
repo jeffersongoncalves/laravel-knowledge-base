@@ -300,7 +300,6 @@ class KnowledgeBaseService
     {
         $articleClass = ModelResolver::article();
         $translationClass = ModelResolver::articleTranslation();
-        $translationTable = (new $translationClass)->getTable();
 
         $filters = function (Builder $builder) use ($options): void {
             $this->applySearchFilters($builder, $options);
@@ -321,16 +320,15 @@ class KnowledgeBaseService
         }
 
         if (Locales::missingTranslation() === Locales::MISSING_FALLBACK) {
+            // The authoritative version is always the configured default
+            // language (see design D1), so the fallback is the default-language
+            // version of articles with no readable version in the requested one.
             $fallback = $translationClass::query()
+                ->where('locale', Locales::default())
                 ->where('status', TranslationStatus::Published)
                 ->whereNotIn('article_id', array_keys($served))
-                ->whereHas('article', function (Builder $builder) use ($filters, $locale, $translationTable): void {
+                ->whereHas('article', function (Builder $builder) use ($filters, $locale): void {
                     $filters($builder);
-
-                    $builder->whereColumn(
-                        $builder->qualifyColumn('source_locale'),
-                        $translationTable.'.locale'
-                    );
 
                     $builder->whereDoesntHave('translations', function (Builder $translations) use ($locale): void {
                         $translations->where('locale', $locale)

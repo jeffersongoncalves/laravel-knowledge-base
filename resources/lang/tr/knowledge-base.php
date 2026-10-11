@@ -14,4 +14,8 @@ return [
         'draft' => 'Taslak',
         'published' => 'Yayınlandı',
     ],
+    'asset_kind' => [
+        'image' => 'Görsel',
+        'file' => 'Dosya',
+    ],
 ];

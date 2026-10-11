@@ -14,4 +14,8 @@ return [
         'draft' => 'Qaralama',
         'published' => 'Dərc edilib',
     ],
+    'asset_kind' => [
+        'image' => 'Şəkil',
+        'file' => 'Fayl',
+    ],
 ];

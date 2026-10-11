@@ -13,13 +13,13 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
-use InvalidArgumentException;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
 use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Concerns\HasTranslations;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableArticleContract;
+use JeffersonGoncalves\KnowledgeBase\Support\ArticleAssets;
 use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
@@ -28,7 +28,6 @@ use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
  * @property int $id
  * @property string $uuid
  * @property int $category_id
- * @property string $source_locale
  * @property string $title
  * @property string $slug
  * @property string $content
@@ -52,6 +51,7 @@ use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
  * @property-read Category $category
  * @property-read Model $author
  * @property-read Collection<int, ArticleVersion> $versions
+ * @property-read Collection<int, ArticleAsset> $assets
  * @property-read Collection<int, ArticleTranslation> $translations
  * @property-read Collection<int, ArticleFeedback> $feedback
  * @property-read Collection<int, Article> $relatedArticles
@@ -123,53 +123,13 @@ class Article extends Model implements ArticleContract, TranslatableArticleContr
             if (empty($article->uuid)) {
                 $article->uuid = (string) Str::uuid();
             }
-
-            if (empty($article->source_locale)) {
-                $article->source_locale = Locales::default();
-            }
         });
-    }
 
-    /**
-     * The language of this article's authoritative version. It must always
-     * have a version in that language, so it can only be changed to a language
-     * the article already has (see design D1/D2 and the "Authoritative
-     * language" requirement).
-     */
-    public function changeSourceLocale(string $locale): static
-    {
-        if (! Locales::isConfigured($locale)) {
-            throw new InvalidArgumentException("Locale [{$locale}] is not configured.");
-        }
-
-        $translation = $this->translation($locale);
-
-        if (! $translation instanceof Model) {
-            throw new InvalidArgumentException("The article has no version in [{$locale}].");
-        }
-
-        foreach ($this->mirroredAttributes() as $attribute) {
-            $this->setAttribute($attribute, $translation->getAttribute($attribute));
-        }
-
-        $this->setAttribute('source_locale', $locale);
-
-        // The promoted version becomes the authoritative one, so it follows the
-        // article's status from now on.
-        $translation->setAttribute('status', $this->status === ArticleStatus::Published
-            ? TranslationStatus::Published
-            : TranslationStatus::Draft);
-
-        static::$syncingTranslations = true;
-
-        try {
-            $translation->saveQuietly();
-            $this->saveQuietly();
-        } finally {
-            static::$syncingTranslations = false;
-        }
-
-        return $this;
+        // A soft delete keeps the article's assets; a force delete removes its
+        // files and folder (the rows cascade with the article, see design D7).
+        static::forceDeleting(function (Article $article) {
+            app(ArticleAssets::class)->purge($article);
+        });
     }
 
     /**
@@ -187,9 +147,14 @@ class Article extends Model implements ArticleContract, TranslatableArticleContr
             ]);
     }
 
+    /**
+     * Articles always have a version in the configured default language; it is
+     * the authoritative one and cannot be chosen per article (see design D1 and
+     * the "Default language is authoritative" requirement).
+     */
     public function authoritativeLocale(): string
     {
-        return (string) ($this->source_locale ?: Locales::default());
+        return Locales::default();
     }
 
     /** @return class-string<Model> */
@@ -239,6 +204,14 @@ class Article extends Model implements ArticleContract, TranslatableArticleContr
     public function versions(): HasMany
     {
         return $this->hasMany(ModelResolver::articleVersion(), 'article_id');
+    }
+
+    /**
+     * The images and files this article owns (see design D2).
+     */
+    public function assets(): HasMany
+    {
+        return $this->hasMany(ModelResolver::articleAsset(), 'article_id');
     }
 
     public function feedback(): HasMany

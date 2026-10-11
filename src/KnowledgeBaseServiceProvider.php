@@ -2,7 +2,9 @@
 
 namespace JeffersonGoncalves\KnowledgeBase;
 
+use JeffersonGoncalves\KnowledgeBase\Commands\PruneAssetsCommand;
 use JeffersonGoncalves\KnowledgeBase\Commands\VerifyTranslationsCommand;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleAssetContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleRelationContract;
@@ -13,6 +15,7 @@ use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryTranslationContrac
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CollectionContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CollectionTranslationContract;
 use JeffersonGoncalves\KnowledgeBase\Services\KnowledgeBaseService;
+use JeffersonGoncalves\KnowledgeBase\Support\ArticleAssets;
 use JeffersonGoncalves\KnowledgeBase\Support\HelpCenter;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -27,6 +30,7 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasCommand(VerifyTranslationsCommand::class)
+            ->hasCommand(PruneAssetsCommand::class)
             ->hasMigrations([
                 'create_kb_categories_table',
                 'create_kb_articles_table',
@@ -35,6 +39,8 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
                 'create_kb_article_relations_table',
                 'add_kb_content_localization',
                 'add_kb_collections',
+                'remove_kb_article_source_locale',
+                'add_kb_article_assets',
             ]);
     }
 
@@ -56,6 +62,7 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
             CategoryTranslationContract::class => 'category_translation',
             CollectionContract::class => 'collection',
             CollectionTranslationContract::class => 'collection_translation',
+            ArticleAssetContract::class => 'article_asset',
         ];
 
         foreach ($bindings as $contract => $configKey) {
@@ -67,5 +74,6 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
     {
         $this->app->singleton(KnowledgeBaseService::class);
         $this->app->singleton(HelpCenter::class);
+        $this->app->singleton(ArticleAssets::class);
     }
 }

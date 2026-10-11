@@ -14,4 +14,8 @@ return [
         'draft' => '草稿',
         'published' => '已发布',
     ],
+    'asset_kind' => [
+        'image' => '图片',
+        'file' => '文件',
+    ],
 ];

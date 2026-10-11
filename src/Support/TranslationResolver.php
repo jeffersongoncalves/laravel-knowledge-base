@@ -42,12 +42,10 @@ class TranslationResolver
         $authoritative = $article->authoritativeTranslation();
 
         if ($authoritative instanceof Model && $this->translationReadable($authoritative)) {
-            $authoritativeLocale = (string) $article->getAttribute('source_locale');
-
             return new ResolvedTranslation(
                 $article,
                 $authoritative,
-                $authoritativeLocale,
+                Locales::default(),
                 (string) $authoritative->getAttribute('slug'),
             );
         }

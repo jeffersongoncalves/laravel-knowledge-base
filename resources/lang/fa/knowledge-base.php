@@ -14,4 +14,8 @@ return [
         'draft' => 'پیش‌نویس',
         'published' => 'منتشرشده',
     ],
+    'asset_kind' => [
+        'image' => 'تصویر',
+        'file' => 'فایل',
+    ],
 ];

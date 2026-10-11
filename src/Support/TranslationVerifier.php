@@ -37,7 +37,7 @@ class TranslationVerifier
                 continue;
             }
 
-            $locale = (string) $article->getAttribute('source_locale');
+            $locale = Locales::default();
             $translation = $article->authoritativeTranslation();
 
             if (! $translation instanceof Model) {

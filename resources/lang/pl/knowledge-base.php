@@ -14,4 +14,8 @@ return [
         'draft' => 'Szkic',
         'published' => 'Opublikowany',
     ],
+    'asset_kind' => [
+        'image' => 'Obraz',
+        'file' => 'Plik',
+    ],
 ];

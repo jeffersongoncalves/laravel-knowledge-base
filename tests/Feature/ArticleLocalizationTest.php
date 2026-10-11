@@ -1,10 +1,10 @@
 <?php
 
-use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Article;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleTranslation;
 use JeffersonGoncalves\KnowledgeBase\Models\Category;
 use JeffersonGoncalves\KnowledgeBase\Models\CategoryTranslation;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Services\KnowledgeBaseService;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\TranslationResolver;
@@ -51,7 +51,7 @@ describe('Article versions per language', function () {
         $english = $this->resolver->resolveArticle($article, 'en');
         $results = $this->service->search('Password');
 
-        expect($article->source_locale)->toBe('en')
+        expect($article->authoritativeLocale())->toBe('en')
             ->and($article->translations)->toHaveCount(1)
             ->and($article->translations->first()->locale)->toBe('en')
             ->and($english?->locale)->toBe('en')
@@ -127,59 +127,23 @@ describe('Authoritative mirror', function () {
     });
 });
 
-describe('Authoritative language', function () {
-    it('defaults a new article to the configured default language', function () {
+describe('Default language is authoritative', function () {
+    it('gives a new article an authoritative version in the configured default language', function () {
         $article = makeEnglishArticle();
 
-        expect($article->source_locale)->toBe('en')
+        expect($article->authoritativeLocale())->toBe('en')
             ->and($article->authoritativeTranslation()->locale)->toBe('en');
     });
 
-    it('changes to a language the article has a version in and rewrites the mirror', function () {
-        $article = makeEnglishArticle();
-
-        $article->translations()->create([
-            'locale' => 'de',
-            'title' => 'Passwort zurücksetzen',
-            'slug' => 'passwort-zuruecksetzen',
-            'content' => 'Deutscher Inhalt.',
-        ]);
-
-        $article->changeSourceLocale('de');
-
-        expect($article->fresh())
-            ->source_locale->toBe('de')
-            ->title->toBe('Passwort zurücksetzen')
-            ->slug->toBe('passwort-zuruecksetzen');
-
-        expect($article->fresh()->translations)->toHaveCount(2);
+    it('offers no way to make another language authoritative for one article', function () {
+        expect(method_exists(Article::class, 'changeSourceLocale'))->toBeFalse()
+            ->and(method_exists(TranslatableArticleContract::class, 'changeSourceLocale'))->toBeFalse();
     });
 
-    it('rejects changing to a language the article has no version in', function () {
-        $article = makeEnglishArticle();
-
-        expect(fn () => $article->changeSourceLocale('de'))->toThrow(InvalidArgumentException::class);
-    });
-
-    it('rejects deleting the authoritative version', function () {
+    it('rejects deleting the version in the default language', function () {
         $article = makeEnglishArticle();
 
         expect(fn () => $article->authoritativeTranslation()->delete())
             ->toThrow(RuntimeException::class);
-    });
-
-    it('keeps the promoted version readable exactly when the article is', function () {
-        $article = makeEnglishArticle();
-        $article->translations()->create([
-            'locale' => 'de',
-            'title' => 'Passwort zurücksetzen',
-            'slug' => 'passwort-zuruecksetzen',
-            'content' => 'Deutscher Inhalt.',
-        ]);
-
-        $this->service->publishArticle($article);
-        $article->changeSourceLocale('de');
-
-        expect($article->authoritativeTranslation()->status)->toBe(TranslationStatus::Published);
     });
 });

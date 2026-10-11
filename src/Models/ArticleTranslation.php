@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Concerns\SyncsAuthoritativeTranslation;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleTranslationContract;
+use JeffersonGoncalves\KnowledgeBase\Support\ArticleAssets;
 use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 
@@ -65,6 +67,21 @@ class ArticleTranslation extends Model implements ArticleTranslationContract
         return (config('knowledge-base.table_prefix') ?? '').'article_translations';
     }
 
+    protected static function booted(): void
+    {
+        // Deleting a language version removes that language's assets (design
+        // D7). This runs on `deleted` because the trait's `deleting` listener
+        // halts the event chain for the authoritative-version guard, and the
+        // authoritative version can never reach a completed deletion anyway.
+        static::deleted(function (ArticleTranslation $translation) {
+            $article = $translation->article()->first();
+
+            if ($article instanceof Model && $article instanceof ArticleContract) {
+                app(ArticleAssets::class)->deleteForLocale($article, (string) $translation->getAttribute('locale'));
+            }
+        });
+    }
+
     public function article(): BelongsTo
     {
         return $this->belongsTo(ModelResolver::article(), 'article_id');
@@ -106,12 +123,8 @@ class ArticleTranslation extends Model implements ArticleTranslationContract
 
     protected function authoritativeLocaleValue(): string
     {
-        $owner = $this->relationLoaded('article') ? $this->getRelation('article') : $this->article()->first();
-
-        if ($owner instanceof Model && $owner->getAttribute('source_locale')) {
-            return (string) $owner->getAttribute('source_locale');
-        }
-
+        // The authoritative version is always the configured default language
+        // (see design D1); the article no longer chooses its own.
         return Locales::default();
     }
 }

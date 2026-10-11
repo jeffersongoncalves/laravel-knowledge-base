@@ -14,4 +14,8 @@ return [
         'draft' => 'Draft',
         'published' => 'Published',
     ],
+    'asset_kind' => [
+        'image' => 'Image',
+        'file' => 'File',
+    ],
 ];

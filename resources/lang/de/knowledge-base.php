@@ -14,4 +14,8 @@ return [
         'draft' => 'Entwurf',
         'published' => 'Veröffentlicht',
     ],
+    'asset_kind' => [
+        'image' => 'Bild',
+        'file' => 'Datei',
+    ],
 ];
