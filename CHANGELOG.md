@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.0 - 2026-10-11
+
+### What's new
+
+- **Public visibility** (#15): `Article::publiclyVisible()`, `Article::staffOnly()` and `Category::publiclyVisible()`. An article is public only when it is published, `public`, and its category and every ancestor are `public`, active and not deleted. Default `search()` now uses this rule, closing a leak of public articles in internal, inactive or deleted categories.
+- **Content localization** (#16): one version per configured language for articles and categories, an authoritative language mirrored onto the main row, `fallback`/`hide` for missing languages, per-language slugs, outdated flags, per-language history, language-aware search (PostgreSQL stemming per language) and `php artisan kb:verify-translations`.
+- **Collections and Help Center API** (#17): curated, ordered, translatable lists of articles (e.g. an FAQ) and `Support\HelpCenter`, a public-only, language-aware read API for help pages.
+- **Translations** (#18): enum labels in 19 languages (ar, az, de, en, es, fa, fr, hi, it, ja, nl, pl, pt, pt_BR, ru, tr, uk, uz, zh_CN); README and Laravel Boost guidelines updated.
+
+### Upgrading
+
+Two additive migrations: `add_kb_content_localization` and `add_kb_collections`. Re-publish the migrations, and **set `knowledge-base.default_locale` to the language your existing content is written in before running `migrate`**: the upgrade tags all existing content with it. No breaking API changes; `published()` is unchanged but is not customer-safe, so use `publiclyVisible()` on public pages.
+
+Thanks @rcoenen for #15, #16 and #17.
+
 ## v1.0.3 - 2026-04-26
 
 ### What's Changed
