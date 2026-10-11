@@ -263,6 +263,12 @@ class ArticleAssets
      */
     protected function assetsOf(Model&ArticleContract $article): iterable
     {
+        // Use the relation when a caller (the admin list) eager-loaded it, so
+        // per-row usage and broken-reference checks stay one query per page.
+        if ($article->relationLoaded('assets')) {
+            return $article->getRelation('assets');
+        }
+
         $assetClass = ModelResolver::articleAsset();
 
         return $assetClass::query()->where('article_id', $article->getKey())->get();
@@ -301,7 +307,11 @@ class ArticleAssets
         $versions = [Locales::default() => (string) $article->getAttribute('content')];
 
         if ($article instanceof TranslatableContract) {
-            foreach ($article->translations()->get() as $translation) {
+            $translations = $article->relationLoaded('translations')
+                ? $article->getRelation('translations')
+                : $article->translations()->get();
+
+            foreach ($translations as $translation) {
                 $versions[(string) $translation->getAttribute('locale')] = (string) $translation->getAttribute('content');
             }
         }
