@@ -4,6 +4,8 @@ namespace JeffersonGoncalves\KnowledgeBase\Models\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use InvalidArgumentException;
+use JeffersonGoncalves\KnowledgeBase\Support\SlugOwnership;
 
 /**
  * Keeps the main row and its authoritative translation mirrored (see design
@@ -88,12 +90,37 @@ trait HasTranslations
 
         $this->applyAuthoritativeStatus($translation);
 
+        $this->guardAuthoritativeSlug($translation);
+
         static::$syncingTranslations = true;
 
         try {
             $translation->saveQuietly();
         } finally {
             static::$syncingTranslations = false;
+        }
+    }
+
+    /**
+     * The mirror is written with saveQuietly(), which skips the translation
+     * models' own save guard, so the slug rule (design D1a) is enforced here as
+     * well when the main row is the side that changed.
+     */
+    protected function guardAuthoritativeSlug(Model $translation): void
+    {
+        $slug = $translation->getAttribute('slug');
+
+        if (! in_array('slug', $this->mirroredAttributes(), true) || ! is_string($slug) || $slug === '') {
+            return;
+        }
+
+        if (SlugOwnership::isTakenByAnother(
+            $this->translationModel(),
+            $this->translationForeignKey(),
+            $this->getKey(),
+            $slug,
+        )) {
+            throw new InvalidArgumentException("The slug [{$slug}] already belongs to another record.");
         }
     }
 

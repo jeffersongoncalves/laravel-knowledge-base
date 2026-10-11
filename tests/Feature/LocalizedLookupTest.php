@@ -178,6 +178,15 @@ describe('Language-aware slugs', function () {
         ]))->toThrow(InvalidArgumentException::class);
     });
 
+    it('rejects a main-row slug that another article uses in another language', function () {
+        $first = localizedArticle(['slug' => 'reset']);
+        addGermanVersion($first, 'published', 'reset-de');
+        $second = localizedArticle(['title' => 'Second', 'slug' => 'second-article']);
+
+        expect(fn () => $second->update(['slug' => 'reset-de']))
+            ->toThrow(InvalidArgumentException::class);
+    });
+
     it('never fails on a slug conflict when the authoritative language changes', function () {
         $article = localizedArticle(['slug' => 'reset']);
         addGermanVersion($article, 'published', 'passwort-zuruecksetzen');

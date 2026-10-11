@@ -7,6 +7,7 @@ use JeffersonGoncalves\KnowledgeBase\Models\Category;
 use JeffersonGoncalves\KnowledgeBase\Models\CategoryTranslation;
 use JeffersonGoncalves\KnowledgeBase\Services\KnowledgeBaseService;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
+use JeffersonGoncalves\KnowledgeBase\Support\TranslationResolver;
 use JeffersonGoncalves\KnowledgeBase\Tests\Fixtures\User;
 
 beforeEach(function () {
@@ -18,6 +19,7 @@ beforeEach(function () {
 
     User::createTable();
     $this->service = app(KnowledgeBaseService::class);
+    $this->resolver = app(TranslationResolver::class);
     $this->user = User::create(['name' => 'John', 'email' => 'john@example.com']);
     $this->category = Category::factory()->create(['name' => 'Account', 'slug' => 'account']);
 });
@@ -40,6 +42,22 @@ it('resolves the translation models', function () {
 });
 
 describe('Article versions per language', function () {
+    it('behaves as a single-language knowledge base with one configured language', function () {
+        config(['knowledge-base.locales' => ['en'], 'knowledge-base.default_locale' => 'en']);
+
+        $article = makeEnglishArticle();
+        $this->service->publishArticle($article);
+
+        $english = $this->resolver->resolveArticle($article, 'en');
+        $results = $this->service->search('Password');
+
+        expect($article->source_locale)->toBe('en')
+            ->and($article->translations)->toHaveCount(1)
+            ->and($article->translations->first()->locale)->toBe('en')
+            ->and($english?->locale)->toBe('en')
+            ->and($results)->toHaveCount(1);
+    });
+
     it('adds a German version that is the same article', function () {
         $article = makeEnglishArticle();
 

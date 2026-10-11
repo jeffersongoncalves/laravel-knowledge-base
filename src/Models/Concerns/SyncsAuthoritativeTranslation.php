@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use InvalidArgumentException;
 use JeffersonGoncalves\KnowledgeBase\Support\Locales;
+use JeffersonGoncalves\KnowledgeBase\Support\SlugOwnership;
 use RuntimeException;
 
 /**
@@ -124,15 +125,19 @@ trait SyncsAuthoritativeTranslation
 
     protected function guardSlugOwnership(): void
     {
-        $conflict = static::query()
-            ->where('slug', $this->getAttribute('slug'))
-            ->where($this->ownerForeignKey(), '!=', $this->getAttribute($this->ownerForeignKey()))
-            ->exists();
+        $slug = $this->getAttribute('slug');
 
-        if ($conflict) {
-            throw new InvalidArgumentException(
-                "The slug [{$this->getAttribute('slug')}] already belongs to another record."
-            );
+        if (! is_string($slug) || $slug === '') {
+            return;
+        }
+
+        if (SlugOwnership::isTakenByAnother(
+            static::class,
+            $this->ownerForeignKey(),
+            $this->getAttribute($this->ownerForeignKey()),
+            $slug,
+        )) {
+            throw new InvalidArgumentException("The slug [{$slug}] already belongs to another record.");
         }
     }
 
