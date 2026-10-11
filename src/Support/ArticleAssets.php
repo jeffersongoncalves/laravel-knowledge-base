@@ -393,35 +393,45 @@ class ArticleAssets
             return ['asset' => $index['byUuid'][$identifier] ?? null, 'identifier' => $identifier];
         }
 
-        $path = $this->relativeAssetPath($link->getAttribute('href'), $article);
+        if ($link->getAttribute('href') === '') {
+            return null;
+        }
 
-        if ($path !== null) {
-            return ['asset' => $index['byPath'][$path] ?? null, 'identifier' => $path];
+        $href = urldecode((string) strtok($link->getAttribute('href'), '?#'));
+
+        // A known asset path anywhere in the URL: robust to a changed site
+        // address, disk prefix or asset directory (design D4 fallback).
+        foreach ($index['byPath'] as $path => $asset) {
+            if ($path !== '' && str_contains($href, $path)) {
+                return ['asset' => $asset, 'identifier' => $path];
+            }
+        }
+
+        // Otherwise recognise the article's folder, so a link to a deleted file
+        // is still reported and unlinked for readers.
+        $relative = $this->assetRelativePart($href, $article);
+
+        if ($relative !== null) {
+            return ['asset' => null, 'identifier' => $relative];
         }
 
         return null;
     }
 
     /**
-     * The asset path inside the article's folder when the URL points into it,
-     * otherwise null (design D4 fallback).
+     * The part of the URL inside `articles/{article uuid}/`, or null when the
+     * URL does not point into the article's folder.
      */
-    protected function relativeAssetPath(string $href, Model&ArticleContract $article): ?string
+    protected function assetRelativePart(string $href, Model&ArticleContract $article): ?string
     {
-        if ($href === '') {
-            return null;
-        }
-
-        $path = urldecode((string) strtok($href, '?#'));
-
-        $needle = $this->directory().'/articles/'.(string) $article->getAttribute('uuid').'/';
-        $position = strpos($path, $needle);
+        $needle = '/articles/'.(string) $article->getAttribute('uuid').'/';
+        $position = strpos($href, $needle);
 
         if ($position === false) {
             return null;
         }
 
-        return substr($path, $position);
+        return substr($href, $position + strlen($needle));
     }
 
     /**
