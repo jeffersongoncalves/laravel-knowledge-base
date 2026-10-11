@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
+use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticleCreated;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticleFeedbackReceived;
 use JeffersonGoncalves\KnowledgeBase\Events\ArticlePublished;
@@ -20,6 +21,7 @@ use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleTranslationContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
+use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
 
@@ -262,13 +264,119 @@ class KnowledgeBaseService
      */
     public function search(string $query, array $options = []): Collection
     {
+        if (! empty($options['locale'])) {
+            return $this->searchLocalized($query, (string) $options['locale'], $options);
+        }
+
         $articleClass = ModelResolver::article();
 
         /** @var Builder<Article> $builder */
         $builder = $articleClass::query();
 
         $this->applySearchConstraint($builder, $query);
+        $this->applySearchFilters($builder, $options);
 
+        $limit = $options['limit'] ?? config('knowledge-base.search_results_limit', 20);
+
+        return $builder->orderByDesc('view_count')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Search one language (see design D4).
+     *
+     * Matches readable versions in the requested language, plus — under the
+     * fallback setting — the authoritative version of articles that have no
+     * readable version in that language. Visibility rules apply unchanged and
+     * every result reports the language that was served.
+     *
+     * @param  array<string, mixed>  $options
+     * @return Collection<int, Article>
+     */
+    protected function searchLocalized(string $query, string $locale, array $options): Collection
+    {
+        $articleClass = ModelResolver::article();
+        $translationClass = ModelResolver::articleTranslation();
+        $translationTable = (new $translationClass)->getTable();
+
+        $filters = function (Builder $builder) use ($options): void {
+            $this->applySearchFilters($builder, $options);
+        };
+
+        /** @var array<int, string> $served article id => served locale */
+        $served = [];
+
+        $requested = $translationClass::query()
+            ->where('locale', $locale)
+            ->where('status', TranslationStatus::Published)
+            ->whereHas('article', $filters);
+
+        $this->applyTranslationSearch($requested, $query, $locale);
+
+        foreach ($requested->get() as $translation) {
+            $served[(int) $translation->getAttribute('article_id')] = $locale;
+        }
+
+        if (Locales::missingTranslation() === Locales::MISSING_FALLBACK) {
+            $fallback = $translationClass::query()
+                ->where('status', TranslationStatus::Published)
+                ->whereNotIn('article_id', array_keys($served))
+                ->whereHas('article', function (Builder $builder) use ($filters, $locale, $translationTable): void {
+                    $filters($builder);
+
+                    $builder->whereColumn(
+                        $builder->qualifyColumn('source_locale'),
+                        $translationTable.'.locale'
+                    );
+
+                    $builder->whereDoesntHave('translations', function (Builder $translations) use ($locale): void {
+                        $translations->where('locale', $locale)
+                            ->where('status', TranslationStatus::Published);
+                    });
+                });
+
+            $this->applyTranslationSearch($fallback, $query, Locales::default());
+
+            foreach ($fallback->get() as $translation) {
+                $served[(int) $translation->getAttribute('article_id')] = (string) $translation->getAttribute('locale');
+            }
+        }
+
+        if ($served === []) {
+            /** @var Collection<int, Article> $empty */
+            $empty = new EloquentCollection;
+
+            return $empty;
+        }
+
+        $limit = $options['limit'] ?? config('knowledge-base.search_results_limit', 20);
+
+        /** @var EloquentCollection<int, Article> $articles */
+        $articles = $articleClass::query()
+            ->whereIn('id', array_keys($served))
+            ->orderByDesc('view_count')
+            ->limit($limit)
+            ->get();
+
+        foreach ($articles as $article) {
+            $article->served_locale = $served[(int) $article->getKey()];
+        }
+
+        return $articles;
+    }
+
+    /**
+     * Apply the category and visibility filters shared by the plain and the
+     * localized search.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $builder
+     * @param  array<string, mixed>  $options
+     */
+    protected function applySearchFilters(Builder $builder, array $options): void
+    {
         if (isset($options['category_id'])) {
             $builder->where('category_id', $options['category_id']);
         }
@@ -286,12 +394,6 @@ class KnowledgeBaseService
         } else {
             Visibility::applyPublic($builder);
         }
-
-        $limit = $options['limit'] ?? config('knowledge-base.search_results_limit', 20);
-
-        return $builder->orderByDesc('view_count')
-            ->limit($limit)
-            ->get();
     }
 
     /**
@@ -311,6 +413,36 @@ class KnowledgeBaseService
 
         if ($engine === 'database' && in_array($driver, ['mysql', 'mariadb', 'pgsql'], true)) {
             $builder->whereFullText(['title', 'content'], $query);
+
+            return;
+        }
+
+        $escaped = addcslashes($query, '%_\\');
+
+        $builder->where(function (Builder $q) use ($escaped) {
+            $q->whereRaw('title LIKE ? ESCAPE ?', ["%{$escaped}%", '\\'])
+                ->orWhereRaw('content LIKE ? ESCAPE ?', ["%{$escaped}%", '\\']);
+        });
+    }
+
+    /**
+     * The translated title/content twin of applySearchConstraint(): native
+     * full-text where supported (with the locale's text-search configuration on
+     * PostgreSQL, see design D4), LIKE elsewhere.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $builder
+     */
+    protected function applyTranslationSearch(Builder $builder, string $query, string $locale): void
+    {
+        $driver = $builder->getModel()->getConnection()->getDriverName();
+        $engine = config('knowledge-base.search_engine', 'database');
+
+        if ($engine === 'database' && in_array($driver, ['mysql', 'mariadb', 'pgsql'], true)) {
+            $options = $driver === 'pgsql' ? ['language' => Locales::searchLanguage($locale)] : [];
+
+            $builder->whereFullText(['title', 'content'], $query, $options);
 
             return;
         }

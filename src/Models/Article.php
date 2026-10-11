@@ -97,6 +97,12 @@ class Article extends Model implements ArticleContract
         'current_version' => 'integer',
     ];
 
+    /**
+     * The language a localized search actually served for this article. Set on
+     * results only; never persisted and not part of an article row.
+     */
+    public ?string $served_locale = null;
+
     public function getTable(): string
     {
         return (config('knowledge-base.table_prefix') ?? '').'articles';

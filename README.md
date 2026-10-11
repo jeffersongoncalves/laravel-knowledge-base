@@ -228,6 +228,18 @@ $staffOnly = $service->search('installation', ['visibility' => 'internal']); // 
 
 Results are ordered by `view_count` descending (most popular first).
 
+**Searching in a language.** Pass `locale` to search that language's versions. Under the fallback setting, an article whose requested-language version is missing or not readable is matched through its authoritative version instead; `hide` returns nothing for it. Each result reports the language it was served in.
+
+```php
+$results = $service->search('Passwort', ['locale' => 'de']);
+
+foreach ($results as $article) {
+    $article->served_locale; // 'de', or 'en' when it fell back
+}
+```
+
+On PostgreSQL the German version is searched with German text-search rules (`search_languages`); MySQL, MariaDB and SQLite use the same LIKE search as above.
+
 ### Using Models Directly
 
 For queries outside the service, use `ModelResolver`:
