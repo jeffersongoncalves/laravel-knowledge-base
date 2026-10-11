@@ -13,9 +13,13 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
+use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
+use JeffersonGoncalves\KnowledgeBase\Models\Concerns\HasTranslations;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
+use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
 
@@ -23,6 +27,7 @@ use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
  * @property int $id
  * @property string $uuid
  * @property int $category_id
+ * @property string $source_locale
  * @property string $title
  * @property string $slug
  * @property string $content
@@ -46,12 +51,14 @@ use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
  * @property-read Category $category
  * @property-read Model $author
  * @property-read Collection<int, ArticleVersion> $versions
+ * @property-read Collection<int, ArticleTranslation> $translations
  * @property-read Collection<int, ArticleFeedback> $feedback
  * @property-read Collection<int, Article> $relatedArticles
  */
 class Article extends Model implements ArticleContract
 {
     use HasFactory;
+    use HasTranslations;
     use SoftDeletes;
 
     /**
@@ -101,7 +108,107 @@ class Article extends Model implements ArticleContract
             if (empty($article->uuid)) {
                 $article->uuid = (string) Str::uuid();
             }
+
+            if (empty($article->source_locale)) {
+                $article->source_locale = Locales::default();
+            }
         });
+    }
+
+    /**
+     * The language of this article's authoritative version. It must always
+     * have a version in that language, so it can only be changed to a language
+     * the article already has (see design D1/D2 and the "Authoritative
+     * language" requirement).
+     */
+    public function changeSourceLocale(string $locale): static
+    {
+        if (! Locales::isConfigured($locale)) {
+            throw new InvalidArgumentException("Locale [{$locale}] is not configured.");
+        }
+
+        $translation = $this->translation($locale);
+
+        if (! $translation instanceof Model) {
+            throw new InvalidArgumentException("The article has no version in [{$locale}].");
+        }
+
+        foreach ($this->mirroredAttributes() as $attribute) {
+            $this->setAttribute($attribute, $translation->getAttribute($attribute));
+        }
+
+        $this->setAttribute('source_locale', $locale);
+
+        // The promoted version becomes the authoritative one, so it follows the
+        // article's status from now on.
+        $translation->setAttribute('status', $this->status === ArticleStatus::Published
+            ? TranslationStatus::Published
+            : TranslationStatus::Draft);
+
+        static::$syncingTranslations = true;
+
+        try {
+            $translation->saveQuietly();
+            $this->saveQuietly();
+        } finally {
+            static::$syncingTranslations = false;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Mark every version other than the authoritative one as outdated
+     * (see design D5).
+     */
+    public function flagOtherTranslationsOutdated(): int
+    {
+        return $this->translations()
+            ->where('locale', '!=', $this->authoritativeLocale())
+            ->update([
+                'is_outdated' => true,
+                'outdated_at' => now(),
+                'updated_at' => now(),
+            ]);
+    }
+
+    public function authoritativeLocale(): string
+    {
+        return (string) ($this->source_locale ?: Locales::default());
+    }
+
+    /** @return class-string<Model> */
+    protected function translationModel(): string
+    {
+        return ModelResolver::articleTranslation();
+    }
+
+    protected function translationForeignKey(): string
+    {
+        return 'article_id';
+    }
+
+    /** @return list<string> */
+    protected function mirroredAttributes(): array
+    {
+        return ['title', 'slug', 'content', 'excerpt', 'seo_title', 'seo_description', 'seo_keywords'];
+    }
+
+    protected function authoritativeStatusDiffers(Model $translation): bool
+    {
+        return $translation->getAttribute('status') !== $this->authoritativeStatus();
+    }
+
+    protected function applyAuthoritativeStatus(Model $translation): void
+    {
+        $translation->setAttribute('status', $this->authoritativeStatus());
+    }
+
+    protected function authoritativeStatus(): TranslationStatus
+    {
+        return $this->status === ArticleStatus::Published
+            ? TranslationStatus::Published
+            : TranslationStatus::Draft;
     }
 
     public function category(): BelongsTo

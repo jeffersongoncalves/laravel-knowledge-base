@@ -3,8 +3,10 @@
 use JeffersonGoncalves\KnowledgeBase\Models\Article;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleFeedback;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleRelation;
+use JeffersonGoncalves\KnowledgeBase\Models\ArticleTranslation;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleVersion;
 use JeffersonGoncalves\KnowledgeBase\Models\Category;
+use JeffersonGoncalves\KnowledgeBase\Models\CategoryTranslation;
 
 return [
     /*
@@ -35,6 +37,8 @@ return [
         'article_version' => ArticleVersion::class,
         'article_feedback' => ArticleFeedback::class,
         'article_relation' => ArticleRelation::class,
+        'article_translation' => ArticleTranslation::class,
+        'category_translation' => CategoryTranslation::class,
     ],
 
     /*

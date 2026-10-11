@@ -2,11 +2,14 @@
 
 namespace JeffersonGoncalves\KnowledgeBase;
 
+use JeffersonGoncalves\KnowledgeBase\Commands\VerifyTranslationsCommand;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleRelationContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleTranslationContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleVersionContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryTranslationContract;
 use JeffersonGoncalves\KnowledgeBase\Services\KnowledgeBaseService;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -20,6 +23,7 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
         $package->name(static::$name)
             ->hasConfigFile()
             ->hasTranslations()
+            ->hasCommand(VerifyTranslationsCommand::class)
             ->hasMigrations([
                 'create_kb_categories_table',
                 'create_kb_articles_table',
@@ -44,6 +48,8 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
             ArticleVersionContract::class => 'article_version',
             ArticleFeedbackContract::class => 'article_feedback',
             ArticleRelationContract::class => 'article_relation',
+            ArticleTranslationContract::class => 'article_translation',
+            CategoryTranslationContract::class => 'category_translation',
         ];
 
         foreach ($bindings as $contract => $configKey) {
