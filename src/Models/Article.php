@@ -17,6 +17,7 @@ use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
+use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
 
 /**
  * @property int $id
@@ -135,10 +136,41 @@ class Article extends Model implements ArticleContract
         )->withPivot('sort_order')->withTimestamps();
     }
 
-    /** @param Builder<static> $query */
+    /**
+     * Published articles, whatever their visibility or category.
+     *
+     * Not safe for customer-facing pages: it includes internal articles and
+     * articles in internal, inactive or deleted categories. Use
+     * publiclyVisible() for anything a customer can see.
+     *
+     * @param  Builder<static>  $query
+     */
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', ArticleStatus::Published);
+    }
+
+    /**
+     * Articles that may be shown to customers: published, public, and in a
+     * category that, along with every ancestor, is active, public and not
+     * deleted.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopePubliclyVisible(Builder $query): Builder
+    {
+        return Visibility::applyPublic($query);
+    }
+
+    /**
+     * Published articles that are not publicly visible: internal articles,
+     * and public articles in an internal, inactive or deleted category.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeStaffOnly(Builder $query): Builder
+    {
+        return Visibility::applyStaffOnly($query);
     }
 
     /** @param Builder<static> $query */

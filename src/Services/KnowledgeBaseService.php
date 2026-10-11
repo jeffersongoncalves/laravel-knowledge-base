@@ -18,6 +18,7 @@ use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
+use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
 
 class KnowledgeBaseService
 {
@@ -179,9 +180,11 @@ class KnowledgeBaseService
     /**
      * Search published articles.
      *
-     * Internal articles are excluded by default. Including them is strictly
-     * opt-in, either by passing an explicit `visibility` option or by setting
-     * `include_internal` to true.
+     * By default only publicly visible articles are returned (see
+     * Article::publiclyVisible()), so internal articles and articles in
+     * internal, inactive or deleted categories are excluded. Staff content is
+     * strictly opt-in: `include_internal` returns every published article, and
+     * `visibility: internal` returns only the staff-only ones.
      *
      * @param  array<string, mixed>  $options
      * @return Collection<int, Article>
@@ -191,8 +194,7 @@ class KnowledgeBaseService
         $articleClass = ModelResolver::article();
 
         /** @var Builder<Article> $builder */
-        $builder = $articleClass::query()
-            ->where('status', ArticleStatus::Published);
+        $builder = $articleClass::query();
 
         $this->applySearchConstraint($builder, $query);
 
@@ -205,9 +207,13 @@ class KnowledgeBaseService
                 ? $options['visibility']
                 : ArticleVisibility::from($options['visibility']);
 
-            $builder->where('visibility', $visibility);
-        } elseif (! ($options['include_internal'] ?? false)) {
-            $builder->where('visibility', '!=', ArticleVisibility::Internal);
+            $visibility === ArticleVisibility::Public
+                ? Visibility::applyPublic($builder)
+                : Visibility::applyStaffOnly($builder);
+        } elseif ($options['include_internal'] ?? false) {
+            $builder->where('status', ArticleStatus::Published);
+        } else {
+            Visibility::applyPublic($builder);
         }
 
         $limit = $options['limit'] ?? config('knowledge-base.search_results_limit', 20);

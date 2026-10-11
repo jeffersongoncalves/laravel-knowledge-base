@@ -196,7 +196,7 @@ Feedback automatically increments `helpful_count` or `not_helpful_count` on the 
 ### Search
 
 ```php
-// Basic search (only published articles)
+// Basic search (only articles customers may see, see "Public vs Internal Content")
 $results = $service->search('installation');
 
 // With filters
@@ -205,6 +205,10 @@ $results = $service->search('installation', [
     'visibility' => 'public',
     'limit' => 10,
 ]);
+
+// Staff search
+$all = $service->search('installation', ['include_internal' => true]); // every published article
+$staffOnly = $service->search('installation', ['visibility' => 'internal']); // only staff-only articles
 ```
 
 Results are ordered by `view_count` descending (most popular first).
@@ -220,12 +224,15 @@ $articleClass = ModelResolver::article();
 $categoryClass = ModelResolver::category();
 
 // Article scopes
-$published = $articleClass::published()->get();
+$published = $articleClass::published()->get(); // staff only, see below
+$public = $articleClass::publiclyVisible()->get();
+$staffOnly = $articleClass::staffOnly()->get();
 $drafts = $articleClass::draft()->get();
 $archived = $articleClass::archived()->get();
 $internal = $articleClass::byVisibility(ArticleVisibility::Internal)->get();
 
 // Category scopes
+$public = $categoryClass::publiclyVisible()->get();
 $active = $categoryClass::active()->get();
 $roots = $categoryClass::root()->get();
 $ordered = $categoryClass::ordered()->get();
@@ -245,6 +252,34 @@ $category->articles;
 // View tracking
 $article->incrementViewCount();
 ```
+
+### Public vs Internal Content
+
+Both articles and categories have a `visibility` of `public` or `internal`. An article may be shown to customers only when **all** of these hold:
+
+- the article is published,
+- the article's visibility is `public`,
+- its category, and every parent category above it, is `public`, active and not deleted.
+
+Every other published article is staff-only. A public article inside an internal category is staff-only too, and a category whose parent is missing counts as hidden.
+
+| Query | Returns | Use for |
+|-------|---------|---------|
+| `publiclyVisible()` | Articles that pass the rule above | Help pages, FAQ, anything a customer can see |
+| `staffOnly()` | Published articles that fail it | Staff-only lists |
+| `published()` | Every published article, whatever its visibility | Admin and staff tools only |
+
+`publiclyVisible()` and `staffOnly()` split the published articles: each one is returned by exactly one of them. `Category::publiclyVisible()` applies the same category rule to category menus. All of them combine with other constraints:
+
+```php
+$article = $articleClass::publiclyVisible()->where('slug', $slug)->firstOrFail();
+$articles = $category->articles()->publiclyVisible()->get();
+$related = $article->relatedArticles()->publiclyVisible()->get();
+```
+
+Content meant for customers and staff alike is simply `public`: staff tools use `published()` and see it as well.
+
+> **Note:** `published()` filters on status only. Do not use it on customer-facing pages, or internal content will show up there.
 
 ### Extending Models
 
