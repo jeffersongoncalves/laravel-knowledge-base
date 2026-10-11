@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
+use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
 
 /**
  * @property int $id
@@ -75,6 +76,17 @@ class Category extends Model implements CategoryContract
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Categories that may be shown to customers: active, public and not
+     * deleted, with every ancestor likewise.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopePubliclyVisible(Builder $query): Builder
+    {
+        return $query->whereIn($query->qualifyColumn('id'), Visibility::publicCategoryIds());
     }
 
     /** @param Builder<static> $query */
