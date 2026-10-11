@@ -104,6 +104,14 @@ class Article extends Model implements ArticleContract, TranslatableArticleContr
      */
     public ?string $served_locale = null;
 
+    /**
+     * The language version a localized search actually served for this
+     * article (title, slug, excerpt and content in that language). Set on
+     * results only; never persisted. The article's own columns keep the
+     * authoritative version, so saving a search result never changes them.
+     */
+    public ?Model $served_translation = null;
+
     public function getTable(): string
     {
         return (config('knowledge-base.table_prefix') ?? '').'articles';

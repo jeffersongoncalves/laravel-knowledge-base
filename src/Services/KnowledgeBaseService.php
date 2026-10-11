@@ -361,8 +361,17 @@ class KnowledgeBaseService
             ->limit($limit)
             ->get();
 
+        // Attach the served language version to each result (one query), so
+        // callers can show the title and slug in that language.
+        $servedTranslations = $translationClass::query()
+            ->whereIn('article_id', $articles->modelKeys())
+            ->get()
+            ->filter(fn (Model $translation): bool => $translation->getAttribute('locale') === ($served[(int) $translation->getAttribute('article_id')] ?? null))
+            ->keyBy('article_id');
+
         foreach ($articles as $article) {
             $article->served_locale = $served[(int) $article->getKey()];
+            $article->served_translation = $servedTranslations->get($article->getKey());
         }
 
         return $articles;

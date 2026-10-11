@@ -228,13 +228,15 @@ $staffOnly = $service->search('installation', ['visibility' => 'internal']); // 
 
 Results are ordered by `view_count` descending (most popular first).
 
-**Searching in a language.** Pass `locale` to search that language's versions. Under the fallback setting, an article whose requested-language version is missing or not readable is matched through its authoritative version instead; `hide` returns nothing for it. Each result reports the language it was served in.
+**Searching in a language.** Pass `locale` to search that language's versions. Under the fallback setting, an article whose requested-language version is missing or not readable is matched through its authoritative version instead; `hide` returns nothing for it. Each result reports the language it was served in and carries that language version in `served_translation`; the article's own columns stay the authoritative version.
 
 ```php
 $results = $service->search('Passwort', ['locale' => 'de']);
 
 foreach ($results as $article) {
-    $article->served_locale; // 'de', or 'en' when it fell back
+    $article->served_locale;              // 'de', or 'en' when it fell back
+    $article->served_translation->title;  // the title in that language
+    $article->served_translation->slug;   // and its slug, for the link
 }
 ```
 

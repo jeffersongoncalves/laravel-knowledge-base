@@ -55,6 +55,35 @@ describe('Search per language', function () {
             ->and($results->first()->served_locale)->toBe('de');
     });
 
+    it('carries the served language version on each result', function () {
+        $article = searchableArticle('password-reset');
+        $this->service->publishArticle($article);
+        addGermanTranslation($article, 'Passwort zurücksetzen anfordern', 'So setzt du dein Passwort zurück.');
+
+        $result = $this->service->search('Passwort zurücksetzen', ['locale' => 'de'])->first();
+
+        expect($result->served_translation)->not->toBeNull()
+            ->and($result->served_translation->getAttribute('locale'))->toBe('de')
+            ->and($result->served_translation->getAttribute('title'))->toBe('Passwort zurücksetzen anfordern')
+            ->and($result->title)->not->toBe('Passwort zurücksetzen anfordern');
+
+        // Saving a search result leaves the authoritative columns alone.
+        $original = $article->fresh()->title;
+        $result->save();
+
+        expect($article->fresh()->title)->toBe($original);
+    });
+
+    it('carries the authoritative version when it fell back', function () {
+        $article = searchableArticle('password-reset');
+        $this->service->publishArticle($article);
+
+        $result = $this->service->search('Password', ['locale' => 'de'])->first();
+
+        expect($result->served_translation->getAttribute('locale'))->toBe('en')
+            ->and($result->served_translation->getAttribute('title'))->toBe($result->title);
+    });
+
     it('falls back to the authoritative version and reports English', function () {
         $article = searchableArticle('password-reset');
         $this->service->publishArticle($article);
