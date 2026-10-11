@@ -5,6 +5,7 @@ namespace JeffersonGoncalves\KnowledgeBase\Support;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Article;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
@@ -160,7 +161,7 @@ class HelpCenter
             ->orderBy('sort_order')
             ->get();
 
-        $counts = $this->publicArticleCounts();
+        $counts = $this->publicArticleCounts($locale);
 
         /** @var array<int, ResolvedTranslation> $resolved */
         $resolved = [];
@@ -213,15 +214,26 @@ class HelpCenter
     }
 
     /**
-     * The number of publicly visible articles directly in each category.
+     * The number of publicly visible articles directly in each category that a
+     * reader of the language gets, matching what the category page lists.
      *
      * @return array<int, int>
      */
-    protected function publicArticleCounts(): array
+    protected function publicArticleCounts(string $locale): array
     {
         $articleClass = ModelResolver::article();
 
-        $rows = Visibility::applyPublic($articleClass::query())
+        $query = Visibility::applyPublic($articleClass::query());
+
+        // Under hide, only articles with a published version in the language
+        // are served (see TranslationResolver::resolveArticle()).
+        if (Locales::missingTranslation() === Locales::MISSING_HIDE) {
+            $query->whereHas('translations', fn ($q) => $q
+                ->where('locale', $locale)
+                ->where('status', TranslationStatus::Published));
+        }
+
+        $rows = $query
             ->selectRaw('category_id, COUNT(*) as aggregate')
             ->groupBy('category_id')
             ->get();

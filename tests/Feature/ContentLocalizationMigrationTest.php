@@ -95,6 +95,17 @@ it('gives archived articles a draft version that can still be read and saved', f
     expect($article->fresh()->translation('en')->title)->toBe('Archived, edited');
 });
 
+it('stops before writing anything when default_locale is not a configured locale', function () {
+    $this->migration->down();
+
+    config(['knowledge-base.locales' => ['en'], 'knowledge-base.default_locale' => 'de']);
+
+    expect(fn () => $this->migration->up())->toThrow(InvalidArgumentException::class)
+        ->and(Schema::hasTable($this->prefix.'article_translations'))->toBeFalse();
+
+    config(['knowledge-base.default_locale' => 'en']);
+});
+
 it('upgrades a single-language knowledge base', function () {
     $this->migration->down();
 

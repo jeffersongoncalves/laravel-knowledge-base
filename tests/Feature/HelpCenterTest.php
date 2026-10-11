@@ -76,6 +76,20 @@ describe('Category tree', function () {
             ->and($nodes[0]->articlesCount)->toBe(2);
     });
 
+    it('counts only the articles served in the language under hide', function () {
+        config(['knowledge-base.missing_translation' => 'hide']);
+        $this->public->translations()->create(['locale' => 'de', 'name' => 'Abrechnung', 'slug' => 'abrechnung']);
+        hcGermanVersion(hcArticle(['slug' => 'translated']), slug: 'uebersetzt');
+        hcGermanVersion(hcArticle(['slug' => 'draft-translation']), 'draft', 'entwurf');
+        hcArticle(['slug' => 'english-only']);
+
+        $nodes = $this->helpCenter->categories('de');
+        $page = $this->helpCenter->category('abrechnung', 'de');
+
+        expect($nodes[0]->articlesCount)->toBe(1)
+            ->and($page->articles)->toHaveCount(1);
+    });
+
     it('falls back to the default language for a category without a version', function () {
         $nodes = $this->helpCenter->categories('de');
 
