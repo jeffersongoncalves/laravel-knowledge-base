@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use JeffersonGoncalves\KnowledgeBase\Models\Concerns\HasTranslations;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
 use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
@@ -34,7 +35,7 @@ use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
  * @property-read Collection<int, CategoryTranslation> $translations
  * @property-read Collection<int, Article> $articles
  */
-class Category extends Model implements CategoryContract
+class Category extends Model implements CategoryContract, TranslatableContract
 {
     use HasFactory;
     use HasTranslations;

@@ -19,6 +19,7 @@ use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
 use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Concerns\HasTranslations;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
@@ -55,7 +56,7 @@ use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
  * @property-read Collection<int, ArticleFeedback> $feedback
  * @property-read Collection<int, Article> $relatedArticles
  */
-class Article extends Model implements ArticleContract
+class Article extends Model implements ArticleContract, TranslatableArticleContract
 {
     use HasFactory;
     use HasTranslations;

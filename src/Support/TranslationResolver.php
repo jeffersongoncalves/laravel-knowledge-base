@@ -7,6 +7,7 @@ use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
 
 /**
  * One resolver for "what does a reader get" (see design D3).
@@ -21,7 +22,7 @@ class TranslationResolver
     /**
      * Resolve an article for a requested locale.
      */
-    public function resolveArticle(Model&ArticleContract $article, string $locale, bool $publicOnly = true): ?ResolvedTranslation
+    public function resolveArticle(Model&ArticleContract&TranslatableContract $article, string $locale, bool $publicOnly = true): ?ResolvedTranslation
     {
         if (! $this->articleReadable($article, $publicOnly)) {
             return null;
@@ -69,7 +70,7 @@ class TranslationResolver
 
         $article = $translation->article()->first();
 
-        if (! $article instanceof Model || ! $article instanceof ArticleContract) {
+        if (! $article instanceof Model || ! $article instanceof ArticleContract || ! $article instanceof TranslatableContract) {
             return null;
         }
 
@@ -79,7 +80,7 @@ class TranslationResolver
     /**
      * Resolve a category for a requested locale.
      */
-    public function resolveCategory(Model&CategoryContract $category, string $locale, bool $publicOnly = true): ?ResolvedTranslation
+    public function resolveCategory(Model&CategoryContract&TranslatableContract $category, string $locale, bool $publicOnly = true): ?ResolvedTranslation
     {
         if ($publicOnly && ! Visibility::categoryIsPubliclyVisible($category)) {
             return null;
@@ -125,7 +126,7 @@ class TranslationResolver
 
         $category = $translation->category()->first();
 
-        if (! $category instanceof Model || ! $category instanceof CategoryContract) {
+        if (! $category instanceof Model || ! $category instanceof CategoryContract || ! $category instanceof TranslatableContract) {
             return null;
         }
 

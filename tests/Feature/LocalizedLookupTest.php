@@ -185,6 +185,37 @@ describe('Language-aware slugs', function () {
 
         expect(fn () => $second->update(['slug' => 'reset-de']))
             ->toThrow(InvalidArgumentException::class);
+
+        // Rejected before anything is written: main row and its version still agree.
+        expect($second->fresh()->slug)->toBe('second-article')
+            ->and($second->fresh()->translation('en')->slug)->toBe('second-article');
+    });
+
+    it('creates no article when its slug belongs to another article', function () {
+        $first = localizedArticle(['slug' => 'reset']);
+        addGermanVersion($first, 'published', 'reset-de');
+
+        // Written straight on the model, as the Filament admin does: no service
+        // transaction to roll a half-saved row back.
+        expect(fn () => Article::create([
+            'category_id' => $this->category->id,
+            'title' => 'Duplicate',
+            'slug' => 'reset-de',
+            'content' => 'Duplicate content.',
+            'author_type' => $this->user->getMorphClass(),
+            'author_id' => $this->user->id,
+        ]))->toThrow(InvalidArgumentException::class);
+
+        expect(Article::query()->where('title', 'Duplicate')->exists())->toBeFalse();
+    });
+
+    it('still saves other changes to an article without re-checking its own slug', function () {
+        $article = localizedArticle(['slug' => 'reset']);
+        addGermanVersion($article, 'published', 'reset-de');
+
+        $article->fresh()->update(['title' => 'Password reset (updated)']);
+
+        expect($article->fresh()->translation('en')->title)->toBe('Password reset (updated)');
     });
 
     it('never fails on a slug conflict when the authoritative language changes', function () {

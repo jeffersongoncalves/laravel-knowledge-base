@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use JeffersonGoncalves\KnowledgeBase\Models\Concerns\HasTranslations;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
 
 /**
  * Reports drift between a main row and its authoritative translation (see
@@ -32,7 +33,7 @@ class TranslationVerifier
         $lines = [];
 
         foreach ($this->rows(ModelResolver::article()) as $article) {
-            if (! $article instanceof ArticleContract) {
+            if (! $article instanceof ArticleContract || ! $article instanceof TranslatableContract) {
                 continue;
             }
 
@@ -64,7 +65,7 @@ class TranslationVerifier
         $locale = Locales::default();
 
         foreach ($this->rows(ModelResolver::category()) as $category) {
-            if (! $category instanceof CategoryContract) {
+            if (! $category instanceof CategoryContract || ! $category instanceof TranslatableContract) {
                 continue;
             }
 

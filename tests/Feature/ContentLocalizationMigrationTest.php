@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
+use JeffersonGoncalves\KnowledgeBase\Models\Article;
 
 /**
  * Load a fresh instance of the localization migration so the upgrade path
@@ -71,6 +73,26 @@ afterEach(function () {
     // Down()/up() change the real schema; make sure the migrated schema is in
     // place again even if an assertion failed halfway.
     $this->migration->up();
+});
+
+it('gives archived articles a draft version that can still be read and saved', function () {
+    $this->migration->down();
+
+    $categoryId = legacyCategory($this->prefix);
+    $articleId = legacyArticle($this->prefix, $categoryId, ['status' => 'archived', 'slug' => 'archived-article']);
+
+    config(['knowledge-base.locales' => ['en'], 'knowledge-base.default_locale' => 'en']);
+
+    $this->migration->up();
+
+    $article = Article::findOrFail($articleId);
+
+    expect($article->authoritativeTranslation()->status)
+        ->toBe(TranslationStatus::Draft);
+
+    $article->update(['title' => 'Archived, edited']);
+
+    expect($article->fresh()->translation('en')->title)->toBe('Archived, edited');
 });
 
 it('upgrades a single-language knowledge base', function () {

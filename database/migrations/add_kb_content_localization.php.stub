@@ -153,7 +153,10 @@ return new class extends Migration
                     'seo_title' => $article->seo_title,
                     'seo_description' => $article->seo_description,
                     'seo_keywords' => $article->seo_keywords,
-                    'status' => $article->status,
+                    // Versions are only draft or published; archived (or any
+                    // other non-published) articles get a draft version, the
+                    // same mapping the model mirror uses.
+                    'status' => $article->status === 'published' ? 'published' : 'draft',
                     'published_at' => $article->published_at,
                     'is_outdated' => false,
                     'outdated_at' => null,

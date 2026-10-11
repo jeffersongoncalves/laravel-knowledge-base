@@ -20,9 +20,11 @@ class SlugOwnership
      */
     public static function isTakenByAnother(string $translationClass, string $foreignKey, int|string|null $ownerId, string $slug): bool
     {
+        // A row that is not saved yet owns nothing, so any existing use of the
+        // slug belongs to another record. (`!= NULL` would match no rows.)
         return $translationClass::query()
             ->where('slug', $slug)
-            ->where($foreignKey, '!=', $ownerId)
+            ->when($ownerId !== null, fn ($query) => $query->where($foreignKey, '!=', $ownerId))
             ->exists();
     }
 }

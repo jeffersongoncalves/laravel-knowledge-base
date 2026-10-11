@@ -21,6 +21,8 @@ use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleTranslationContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableArticleContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
 use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
@@ -55,7 +57,7 @@ class KnowledgeBaseService
             if (config('knowledge-base.versioning_enabled', true)) {
                 $article->versions()->create([
                     'version_number' => 1,
-                    'locale' => $article->authoritativeLocale(),
+                    'locale' => $this->versionLocale($article),
                     'title' => $article->title,
                     'content' => $article->content,
                     'excerpt' => $article->excerpt,
@@ -86,7 +88,7 @@ class KnowledgeBaseService
 
                 $article->versions()->create([
                     'version_number' => $newVersion,
-                    'locale' => $article->authoritativeLocale(),
+                    'locale' => $this->versionLocale($article),
                     'title' => $article->title,
                     'content' => $article->content,
                     'excerpt' => $article->excerpt,
@@ -102,7 +104,7 @@ class KnowledgeBaseService
             }
 
             if ($flagOtherLocalesOutdated) {
-                $article->flagOtherTranslationsOutdated();
+                $this->translatableArticle($article)->flagOtherTranslationsOutdated();
             }
 
             return $article->fresh();
@@ -119,7 +121,7 @@ class KnowledgeBaseService
     {
         return DB::transaction(function () use ($article, $locale, $data, $editor, $changeNotes) {
             /** @var Article $article */
-            $translation = $article->translation($locale);
+            $translation = $this->translatableArticle($article)->translation($locale);
 
             if (! $translation instanceof Model) {
                 throw new InvalidArgumentException("The article has no version in [{$locale}].");
@@ -364,6 +366,27 @@ class KnowledgeBaseService
         }
 
         return $articles;
+    }
+
+    /**
+     * The language a history entry is recorded in: the authoritative language
+     * for translatable articles, the default language otherwise (custom models
+     * that implement ArticleContract without the localization contract).
+     */
+    protected function versionLocale(Model $article): string
+    {
+        return $article instanceof TranslatableContract
+            ? $article->authoritativeLocale()
+            : Locales::default();
+    }
+
+    protected function translatableArticle(Model $article): Model&TranslatableArticleContract
+    {
+        if (! $article instanceof TranslatableArticleContract) {
+            throw new InvalidArgumentException('The configured article model does not implement '.TranslatableArticleContract::class.'.');
+        }
+
+        return $article;
     }
 
     /**

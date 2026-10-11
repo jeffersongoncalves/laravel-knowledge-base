@@ -5,8 +5,11 @@ use JeffersonGoncalves\KnowledgeBase\Models\ArticleFeedback;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleRelation;
 use JeffersonGoncalves\KnowledgeBase\Models\ArticleVersion;
 use JeffersonGoncalves\KnowledgeBase\Models\Category;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
 use JeffersonGoncalves\KnowledgeBase\Services\KnowledgeBaseService;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
+use JeffersonGoncalves\KnowledgeBase\Tests\Fixtures\ContractOnlyArticle;
 use JeffersonGoncalves\KnowledgeBase\Tests\Fixtures\CustomArticle;
 use JeffersonGoncalves\KnowledgeBase\Tests\Fixtures\User;
 
@@ -96,4 +99,10 @@ it('uses the overridden model when creating articles', function () {
     ], $author);
 
     expect($article)->toBeInstanceOf(CustomArticle::class);
+});
+
+it('keeps the article contract implementable without the localization methods', function () {
+    expect(new ContractOnlyArticle)
+        ->toBeInstanceOf(ArticleContract::class)
+        ->not->toBeInstanceOf(TranslatableContract::class);
 });

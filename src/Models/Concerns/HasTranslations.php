@@ -22,6 +22,16 @@ trait HasTranslations
 
     protected static function bootHasTranslations(): void
     {
+        // Checked before the row is written: once the main row is saved, a
+        // rejected mirror would leave the two sides out of sync.
+        static::saving(function (Model $model): void {
+            if (! $model instanceof self || static::$syncingTranslations) {
+                return;
+            }
+
+            $model->guardAuthoritativeSlug();
+        });
+
         static::saved(function (Model $model): void {
             if (! $model instanceof self || static::$syncingTranslations) {
                 return;
@@ -90,8 +100,6 @@ trait HasTranslations
 
         $this->applyAuthoritativeStatus($translation);
 
-        $this->guardAuthoritativeSlug($translation);
-
         static::$syncingTranslations = true;
 
         try {
@@ -104,13 +112,18 @@ trait HasTranslations
     /**
      * The mirror is written with saveQuietly(), which skips the translation
      * models' own save guard, so the slug rule (design D1a) is enforced here as
-     * well when the main row is the side that changed.
+     * well when the main row is the side that changed. Runs on `saving`, so a
+     * rejected slug leaves nothing half-written.
      */
-    protected function guardAuthoritativeSlug(Model $translation): void
+    protected function guardAuthoritativeSlug(): void
     {
-        $slug = $translation->getAttribute('slug');
+        $slug = $this->getAttribute('slug');
 
         if (! in_array('slug', $this->mirroredAttributes(), true) || ! is_string($slug) || $slug === '') {
+            return;
+        }
+
+        if ($this->exists && ! $this->isDirty('slug')) {
             return;
         }
 
