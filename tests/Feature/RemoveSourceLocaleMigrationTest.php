@@ -168,3 +168,12 @@ it('restores the column on rollback', function () {
 
     expect(DB::table('kb_articles')->where('id', $articleId)->value('source_locale'))->toBe('en');
 });
+
+it('rolls back even when the default language is not one of the configured languages', function () {
+    $this->migration->up();
+    config(['knowledge-base.default_locale' => 'it']);
+
+    $this->migration->down();
+
+    expect(Schema::hasColumn('kb_articles', 'source_locale'))->toBeTrue();
+});

@@ -19,7 +19,8 @@ use JeffersonGoncalves\KnowledgeBase\Support\Locales;
  * default-language version the migration stops before changing anything and
  * names those articles, so they can be translated first.
  *
- * `down()` re-adds the column, filled with the configured default.
+ * `down()` re-adds the column, filled with the configured default, even when
+ * the current language configuration does not validate.
  */
 return new class extends Migration
 {
@@ -48,7 +49,10 @@ return new class extends Migration
             return;
         }
 
-        $defaultLocale = Locales::default();
+        // Read the raw value instead of Locales::default(): a rollback must not
+        // fail because the current language configuration is invalid.
+        $defaultLocale = config('knowledge-base.default_locale');
+        $defaultLocale = is_string($defaultLocale) && $defaultLocale !== '' ? $defaultLocale : 'en';
 
         Schema::table($prefix.'articles', function (Blueprint $table) use ($defaultLocale) {
             $table->string('source_locale', 16)->default($defaultLocale);
