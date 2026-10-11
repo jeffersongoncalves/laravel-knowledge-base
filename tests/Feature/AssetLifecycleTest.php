@@ -117,3 +117,14 @@ it('removes a language version\'s assets and keeps the shared ones', function ()
     expect(ArticleAsset::query()->whereKey($german->getKey())->exists())->toBeFalse()
         ->and(ArticleAsset::query()->whereKey($shared->getKey())->exists())->toBeTrue();
 });
+
+it('removes the file however the asset record is deleted', function () {
+    $asset = $this->assets->store($this->article, UploadedFile::fake()->image('fern-leaf.jpg'), AssetKind::Image);
+    $path = $asset->path;
+
+    Storage::disk('public')->assertExists($path);
+
+    ArticleAsset::query()->whereKey($asset->getKey())->first()->delete();
+
+    Storage::disk('public')->assertMissing($path);
+});

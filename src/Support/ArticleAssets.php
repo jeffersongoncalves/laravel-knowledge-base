@@ -219,13 +219,12 @@ class ArticleAssets
     }
 
     /**
-     * Remove an asset's file and row. Deleting an asset that is still used is
-     * allowed; callers show its usage first (design D7).
+     * Remove an asset's row and, through the model's `deleted` event, its file.
+     * Deleting an asset that is still used is allowed; callers show its usage
+     * first (design D7).
      */
     public function delete(Model&ArticleAssetContract $asset): void
     {
-        Storage::disk((string) $asset->getAttribute('disk'))->delete((string) $asset->getAttribute('path'));
-
         $asset->delete();
     }
 

@@ -5,6 +5,7 @@ namespace JeffersonGoncalves\KnowledgeBase\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use JeffersonGoncalves\KnowledgeBase\Enums\AssetKind;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleAssetContract;
@@ -66,6 +67,13 @@ class ArticleAsset extends Model implements ArticleAssetContract
             if (empty($asset->uuid)) {
                 $asset->uuid = (string) Str::uuid();
             }
+        });
+
+        // The file goes with its record, however the record is deleted (an
+        // admin action, ArticleAssets::delete() or plain Eloquent), so no
+        // deletion path can leave an orphaned file behind.
+        static::deleted(function (ArticleAsset $asset) {
+            Storage::disk($asset->disk)->delete($asset->path);
         });
     }
 
