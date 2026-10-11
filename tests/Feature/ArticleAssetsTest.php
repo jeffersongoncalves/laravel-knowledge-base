@@ -205,3 +205,17 @@ describe('Asset URLs', function () {
         expect($this->assets->url($asset))->toBe(Storage::disk('public')->url($asset->getAttribute('path')));
     });
 });
+
+it('creates no asset record when the disk reports a failed write', function () {
+    $disk = Mockery::mock(Storage::disk('public'))->makePartial();
+    $disk->shouldReceive('putFileAs')->andReturn(false);
+    $disk->shouldReceive('put')->andReturn(false);
+    Storage::set('public', $disk);
+
+    $local = (string) tempnam(sys_get_temp_dir(), 'kb-asset-test-');
+    file_put_contents($local, pdfBytes());
+
+    expect(fn () => $this->assets->store($this->article, fakePdf(), AssetKind::File))->toThrow(RuntimeException::class)
+        ->and(fn () => $this->assets->store($this->article, $local, AssetKind::File))->toThrow(RuntimeException::class)
+        ->and($this->article->assets()->count())->toBe(0);
+});

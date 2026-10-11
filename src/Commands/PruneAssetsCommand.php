@@ -14,7 +14,8 @@ use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 /**
  * Removes files under the assets directory that no asset row knows, and folders
  * whose article no longer exists at all (see design D8). A soft-deleted article
- * keeps its folder; unused but valid assets are never pruned. Reports asset
+ * keeps its folder; unused but valid assets are never pruned, and neither is
+ * anything written in the past hour. Reports asset
  * rows whose file is missing. `--dry-run` lists without deleting.
  */
 class PruneAssetsCommand extends Command
@@ -57,7 +58,7 @@ class PruneAssetsCommand extends Command
         $removed = 0;
 
         foreach ($storage->allFiles($root) as $file) {
-            if (in_array($file, $knownPaths, true)) {
+            if (in_array($file, $knownPaths, true) || $this->isRecent($storage, $file)) {
                 continue;
             }
 
@@ -85,6 +86,10 @@ class PruneAssetsCommand extends Command
                 continue;
             }
 
+            if (array_filter($storage->allFiles($folder), fn (string $file): bool => $this->isRecent($storage, $file)) !== []) {
+                continue;
+            }
+
             $this->line("Folder of a deleted article: {$folder}");
 
             if (! $dryRun) {
@@ -95,6 +100,16 @@ class PruneAssetsCommand extends Command
         }
 
         return $removed;
+    }
+
+    /**
+     * ArticleAssets::store() writes the file before its record, and an article
+     * exists before its folder, so a file written in the past hour may belong to
+     * an upload that is still in progress: leave it for the next run.
+     */
+    protected function isRecent(Filesystem $storage, string $file): bool
+    {
+        return $storage->lastModified($file) > now()->subHour()->getTimestamp();
     }
 
     /**

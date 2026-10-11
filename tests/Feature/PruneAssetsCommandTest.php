@@ -50,6 +50,7 @@ it('removes a file that no asset record knows', function () {
     $asset = pruneAsset($this->article);
     $stray = 'knowledge-base/articles/'.$this->article->uuid.'/shared/stray.jpg';
     Storage::disk('public')->put($stray, 'copied by hand');
+    $this->travel(2)->hours();
 
     $this->artisan('kb:prune-assets')
         ->expectsOutputToContain('Stray file:')
@@ -62,6 +63,7 @@ it('removes a file that no asset record knows', function () {
 it('lists what it would remove on a dry run and removes nothing', function () {
     $stray = 'knowledge-base/articles/'.$this->article->uuid.'/shared/stray.jpg';
     Storage::disk('public')->put($stray, 'copied by hand');
+    $this->travel(2)->hours();
 
     $this->artisan('kb:prune-assets', ['--dry-run' => true])
         ->expectsOutputToContain('Stray file:')
@@ -92,8 +94,23 @@ it('reports an asset record whose file is missing', function () {
 it('removes the folder of an article that no longer exists', function () {
     $orphan = 'knowledge-base/articles/00000000-0000-0000-0000-000000000000/shared/old.jpg';
     Storage::disk('public')->put($orphan, 'orphaned');
+    $this->travel(2)->hours();
 
     $this->artisan('kb:prune-assets')->assertSuccessful();
 
     Storage::disk('public')->assertMissing($orphan);
+});
+
+it('keeps a file written in the past hour, which may be an upload still in progress', function () {
+    $stray = 'knowledge-base/articles/'.$this->article->uuid.'/shared/uploading.jpg';
+    $orphan = 'knowledge-base/articles/00000000-0000-0000-0000-000000000000/shared/new.jpg';
+    Storage::disk('public')->put($stray, 'not recorded yet');
+    Storage::disk('public')->put($orphan, 'article not visible yet');
+
+    $this->artisan('kb:prune-assets')
+        ->expectsOutputToContain('Nothing to prune.')
+        ->assertSuccessful();
+
+    Storage::disk('public')->assertExists($stray);
+    Storage::disk('public')->assertExists($orphan);
 });

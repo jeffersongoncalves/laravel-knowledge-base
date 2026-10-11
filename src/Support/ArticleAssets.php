@@ -16,6 +16,7 @@ use JeffersonGoncalves\KnowledgeBase\Enums\AssetKind;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleAssetContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 
 /**
@@ -53,6 +54,7 @@ class ArticleAssets
      *
      * @throws InvalidArgumentException when the language is not configured
      * @throws ValidationException when the file's type or size is not allowed
+     * @throws RuntimeException when the disk reports the write failed
      */
     public function store(Model&ArticleContract $article, UploadedFile|string $file, AssetKind $kind, ?string $locale = null): Model&ArticleAssetContract
     {
@@ -70,10 +72,13 @@ class ArticleAssets
         $directory = $this->directoryFor($article, $scope);
         $path = $directory.'/'.$this->fileName($originalName, $mime, $source->guessExtension());
 
-        if ($file instanceof UploadedFile) {
-            Storage::disk($disk)->putFileAs($directory, $file, basename($path));
-        } else {
-            Storage::disk($disk)->put($path, (string) file_get_contents($source->getRealPath()));
+        $written = $file instanceof UploadedFile
+            ? Storage::disk($disk)->putFileAs($directory, $file, basename($path))
+            : Storage::disk($disk)->put($path, (string) file_get_contents($source->getRealPath()));
+
+        // A disk that doesn't throw reports a failed write as false: no record for a missing file.
+        if ($written === false) {
+            throw new RuntimeException("Could not write the asset file {$disk}:{$path}.");
         }
 
         [$width, $height] = $this->dimensions($source, $kind);
