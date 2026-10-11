@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.0.0 - 2026-10-11
+
+### Breaking changes
+
+- **The authoritative language is always the configured default language**, for articles as it already was for categories and collections. `Article::changeSourceLocale()` (and its entry in `TranslatableArticleContract`) and the `kb_articles.source_locale` column are removed. The `remove_kb_article_source_locale` migration re-mirrors every article whose authoritative language was not the default from its default-language version, then drops the column; it stops before changing anything if an article has no default-language version. Code that called `changeSourceLocale()` or read `source_locale` uses `authoritativeLocale()` instead.
+
+### Features
+
+- **Article assets**: images and files belong to an article, stored in one folder per article (`{directory}/articles/{uuid}/shared|{locale}/`), shared across languages or per language. Content refers to them by id; `ArticleAssets::resolve()` builds current URLs at render time, so moving the site to another domain no longer breaks images. New table `kb_article_assets`, model `ArticleAsset`, enum `AssetKind`, and `attachments` config (disk, directory, accepted types and sizes per kind).
+- `php artisan kb:prune-assets` (`--dry-run`) removes stray files and folders of deleted articles; files written in the past hour are kept.
+
+### Fixes
+
+- `ArticleAssets::store()` throws when the disk reports a failed write, so no record points at a missing file.
+- Rolling back `remove_kb_article_source_locale` no longer depends on a valid language configuration.
+
+### Upgrading
+
+1. `php artisan vendor:publish --tag=knowledge-base-migrations` and `php artisan migrate`.
+2. With the default `public` disk, run `php artisan storage:link` once.
+3. Apps rendering article content themselves pass it through `ArticleAssets::resolve($html, $article, forPublic: true)`.
+
+Thanks @rcoenen for the contribution (#20).
+
 ## v1.1.0 - 2026-10-11
 
 ### What's new
