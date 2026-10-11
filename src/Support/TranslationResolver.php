@@ -7,6 +7,7 @@ use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CollectionContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
 
 /**
@@ -131,6 +132,67 @@ class TranslationResolver
         }
 
         return $this->resolveCategory($category, $locale, $publicOnly);
+    }
+
+    /**
+     * Resolve a collection for a requested locale (see design D1 and D2).
+     *
+     * A collection is customer-visible only when it is active; an inactive or
+     * deleted collection resolves to nothing. Like categories, a collection has
+     * no per-language status, so the requested version is served when it exists
+     * and the authoritative version otherwise (or nothing under 'hide').
+     */
+    public function resolveCollection(Model&CollectionContract&TranslatableContract $collection, string $locale, bool $publicOnly = true): ?ResolvedTranslation
+    {
+        if ($publicOnly && ! (bool) $collection->getAttribute('is_active')) {
+            return null;
+        }
+
+        $requested = $collection->translation($locale);
+
+        if ($requested instanceof Model) {
+            return new ResolvedTranslation($collection, $requested, $locale, (string) $requested->getAttribute('slug'));
+        }
+
+        if (Locales::missingTranslation() === Locales::MISSING_HIDE) {
+            return null;
+        }
+
+        $default = $collection->authoritativeTranslation();
+
+        if ($default instanceof Model) {
+            return new ResolvedTranslation(
+                $collection,
+                $default,
+                Locales::default(),
+                (string) $default->getAttribute('slug'),
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * Find the one collection that owns a slug (any language) and resolve it for
+     * the requested locale.
+     */
+    public function resolveCollectionBySlug(string $slug, string $locale, bool $publicOnly = true): ?ResolvedTranslation
+    {
+        $translationClass = ModelResolver::collectionTranslation();
+
+        $translation = $translationClass::query()->where('slug', $slug)->first();
+
+        if (! $translation instanceof Model) {
+            return null;
+        }
+
+        $collection = $translation->collection()->first();
+
+        if (! $collection instanceof Model || ! $collection instanceof CollectionContract || ! $collection instanceof TranslatableContract) {
+            return null;
+        }
+
+        return $this->resolveCollection($collection, $locale, $publicOnly);
     }
 
     protected function articleReadable(Model&ArticleContract $article, bool $publicOnly): bool

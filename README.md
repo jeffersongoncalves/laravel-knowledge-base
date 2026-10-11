@@ -28,6 +28,10 @@ A Laravel package for building knowledge bases with articles, categories, versio
 - **Customizable Models** — Override any model via config while maintaining contract compliance
 - **Table Prefix** — Configurable table prefix to avoid naming collisions (default: `kb_`)
 - **Translations** — English and Brazilian Portuguese out of the box
+- **Public Visibility** — One rule for what customers may see: published, public, and in a public, active category with public ancestors
+- **Content Localization** — One version per configured language with fallback, per-language slugs and an authoritative language
+- **Collections (FAQ)** — Curated, ordered, translatable lists of articles such as an FAQ
+- **Help Center API** — One public-only, language-aware read API for building help pages: category tree, category, article, collection and search
 
 ## Requirements
 
@@ -83,6 +87,8 @@ Override any model to extend the default behavior. Custom models must implement 
     'article_relation' => \App\Models\ArticleRelation::class,
     'article_translation' => \App\Models\ArticleTranslation::class,
     'category_translation' => \App\Models\CategoryTranslation::class,
+    'collection' => \App\Models\Collection::class,
+    'collection_translation' => \App\Models\CollectionTranslation::class,
 ],
 ```
 
@@ -382,6 +388,79 @@ Pass `publicOnly: false` for staff lookups that may see internal content.
 
 > **Before migrating an existing knowledge base**, set `default_locale` to the language the existing content is written in. The upgrade tags every existing article and category with that language, so a wrong value mislabels all existing content. See the migration note below.
 
+### Collections
+
+A collection is a named, ordered, translatable list of articles, such as an FAQ. The FAQ is one collection; other lists ("Getting started", …) need no schema change.
+
+```php
+use JeffersonGoncalves\KnowledgeBase\Models\Collection;
+
+$faq = Collection::create([
+    'name' => 'Frequently asked questions',
+    'slug' => 'frequently-asked-questions',
+]);
+
+$faq->translations()->create([
+    'locale' => 'de',
+    'name' => 'Häufige Fragen',
+    'slug' => 'haeufige-fragen',
+]);
+
+$faq->addArticle($article);         // appended at the end
+$faq->addArticle($other, 0);        // or at a given position
+$faq->reorderArticles([$other, $article]);
+$faq->removeArticle($article);
+
+$faq->articleIds();                 // the ids, in order
+```
+
+Like categories, a collection always has a version in `default_locale` (its main row mirrors it), and a slug belongs to one collection in any language. Adding an article that is already in the collection is rejected; removing it, or deleting the collection, never touches the article itself.
+
+Editors may put any article in a collection, public or not: the public view filters at read time, so an article whose visibility (or whose category's) changes later is handled without re-saving the collection. `Collection::publicArticles($locale)` returns only the publicly visible articles, in order, each resolved for the language (see Localization above): under `hide`, an article without a readable version in that language is left out; under `fallback` it is served in its authoritative language, at its position. An inactive or deleted collection is not found publicly.
+
+### Help Center API
+
+`Support\HelpCenter` composes the visibility and language rules for public pages, so a help page is a few lines. It is public-only by construction: every result goes through `Visibility` and `TranslationResolver`, and anything not publicly visible is reported as not found.
+
+```php
+use JeffersonGoncalves\KnowledgeBase\Support\HelpCenter;
+
+$help = app(HelpCenter::class);
+
+$tree = $help->categories('de');                              // list<CategoryNode>, with article counts
+$category = $help->category('abrechnung', 'de');        // ?CategoryPage
+$article = $help->article($slug, 'de');                       // ?ArticlePage
+$collection = $help->collection('haeufige-fragen', 'de'); // ?CollectionPage
+$results = $help->search('reset', 'de', 20);                    // public, language-aware search results
+```
+
+- An `ArticlePage` carries the served version (`translation`), the served language (`locale`), `isFallback` (served ≠ requested), `redirectSlug` (set when the requested slug is not the served version's slug), `alternates` (locale ⇒ slug of every language the article can actually be read in), `breadcrumb` and `related`.
+- A `CategoryPage` carries the resolved category, its `children` and its `articles`.
+- A `CollectionPage` carries the resolved collection and its public `articles` in order.
+- A `CategoryNode` carries the resolved category, a slug and name in the served language, its public article count (`articlesCount`) and its `children`.
+
+A minimal public article page built on the API:
+
+```php
+Route::get('/{locale}/help/articles/{slug}', function (string $locale, string $slug) {
+    abort_unless(in_array($locale, config('knowledge-base.locales'), true), 404);
+
+    $page = app(HelpCenter::class)->article($slug, $locale);
+
+    if ($page === null) {
+        abort(404);
+    }
+
+    if ($page->redirectSlug !== null) {
+        return redirect("/{$page->locale}/help/articles/{$page->redirectSlug}", 301);
+    }
+
+    return view('help.article', ['page' => $page]);
+});
+```
+
+The package registers no routes or views (it stays headless); the app renders the pages, following the `help-center-reference` contract (URLs, redirects, fallback notice, `hreflang` alternates, 404s).
+
 ### Extending Models
 
 Create custom models that implement the required contract:
@@ -477,6 +556,9 @@ All tables use the configured prefix (default: `kb_`):
 | `kb_article_versions` | Article version history, per language |
 | `kb_article_feedback` | User feedback on articles |
 | `kb_article_relations` | Related articles (pivot) |
+| `kb_collections` | Curated, ordered lists of articles (e.g. an FAQ) |
+| `kb_collection_translations` | Collection name/slug/description per language |
+| `kb_collection_article` | Ordered membership of articles in collections (pivot) |
 
 ## Testing
 

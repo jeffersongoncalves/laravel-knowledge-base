@@ -11,6 +11,8 @@ use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleTranslationContract
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleVersionContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryTranslationContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CollectionContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CollectionTranslationContract;
 
 class ModelResolver
 {
@@ -45,6 +47,18 @@ class ModelResolver
     public static function categoryTranslation(): string
     {
         return static::resolve('category_translation', CategoryTranslationContract::class);
+    }
+
+    /** @return class-string<Model&CollectionContract> */
+    public static function collection(): string
+    {
+        return static::resolve('collection', CollectionContract::class);
+    }
+
+    /** @return class-string<Model&CollectionTranslationContract> */
+    public static function collectionTranslation(): string
+    {
+        return static::resolve('collection_translation', CollectionTranslationContract::class);
     }
 
     /** @return class-string<Model&ArticleFeedbackContract> */
