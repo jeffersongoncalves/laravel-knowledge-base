@@ -110,8 +110,8 @@ describe('Search per language', function () {
 
         $article = searchableArticle('abrechnung');
         $this->service->publishArticle($article);
-        addGermanTranslation($article, 'Abrechnung', 'Informationen zu deinen Zahlungen.');
+        addGermanTranslation($article, 'Abrechnung', 'Informationen zu deinen Rechnungen.');
 
-        expect($this->service->search('Zahlungsweise', ['locale' => 'de']))->toHaveCount(1);
+        expect($this->service->search('Rechnung', ['locale' => 'de']))->toHaveCount(1);
     });
 });
