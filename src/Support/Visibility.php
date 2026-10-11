@@ -3,6 +3,7 @@
 namespace JeffersonGoncalves\KnowledgeBase\Support;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
@@ -54,6 +55,43 @@ class Visibility
                 $q->where($query->qualifyColumn('visibility'), '!=', ArticleVisibility::Public)
                     ->orWhereNotIn($query->qualifyColumn('category_id'), $categoryIds);
             });
+    }
+
+    /**
+     * Whether a single article may be shown to customers. The PHP-side twin of
+     * applyPublic(), so lookups that already hold a model reuse the same rule.
+     */
+    public static function articleIsPubliclyVisible(Model $article): bool
+    {
+        $status = $article->getAttribute('status');
+        $published = $status instanceof ArticleStatus
+            ? $status === ArticleStatus::Published
+            : $status === ArticleStatus::Published->value;
+
+        if (! $published) {
+            return false;
+        }
+
+        $visibility = $article->getAttribute('visibility');
+        $public = $visibility instanceof ArticleVisibility
+            ? $visibility === ArticleVisibility::Public
+            : $visibility === ArticleVisibility::Public->value;
+
+        if (! $public) {
+            return false;
+        }
+
+        return in_array((int) $article->getAttribute('category_id'), static::publicCategoryIds(), true);
+    }
+
+    /**
+     * Whether a single category may be shown to customers. The PHP-side twin of
+     * Category::scopePubliclyVisible(). A soft-deleted category is never
+     * public, because publicCategoryIds() leaves it out.
+     */
+    public static function categoryIsPubliclyVisible(Model $category): bool
+    {
+        return in_array((int) $category->getKey(), static::publicCategoryIds(), true);
     }
 
     /**

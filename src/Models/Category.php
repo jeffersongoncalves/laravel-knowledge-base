@@ -10,7 +10,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use JeffersonGoncalves\KnowledgeBase\Models\Concerns\HasTranslations;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
+use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
 
@@ -29,11 +32,13 @@ use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
  * @property Carbon|null $deleted_at
  * @property-read Category|null $parent
  * @property-read Collection<int, Category> $children
+ * @property-read Collection<int, CategoryTranslation> $translations
  * @property-read Collection<int, Article> $articles
  */
-class Category extends Model implements CategoryContract
+class Category extends Model implements CategoryContract, TranslatableContract
 {
     use HasFactory;
+    use HasTranslations;
     use SoftDeletes;
 
     protected $fillable = [
@@ -55,6 +60,32 @@ class Category extends Model implements CategoryContract
     public function getTable(): string
     {
         return (config('knowledge-base.table_prefix') ?? '').'categories';
+    }
+
+    /**
+     * Categories always have a version in the configured default language
+     * (see design D1 and the "Category versions per language" requirement).
+     */
+    public function authoritativeLocale(): string
+    {
+        return Locales::default();
+    }
+
+    /** @return class-string<Model> */
+    protected function translationModel(): string
+    {
+        return ModelResolver::categoryTranslation();
+    }
+
+    protected function translationForeignKey(): string
+    {
+        return 'category_id';
+    }
+
+    /** @return list<string> */
+    protected function mirroredAttributes(): array
+    {
+        return ['name', 'slug', 'description'];
     }
 
     public function parent(): BelongsTo

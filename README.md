@@ -47,6 +47,11 @@ php artisan vendor:publish --tag="knowledge-base-migrations"
 php artisan migrate
 ```
 
+> **Upgrading an existing knowledge base:** before running `migrate`, set
+> `knowledge-base.default_locale` to the language your existing content is
+> written in (default `en`). The localization migration tags every existing
+> article and category with that language; a wrong value mislabels all content.
+
 Publish the config (optional):
 
 ```bash
@@ -76,6 +81,8 @@ Override any model to extend the default behavior. Custom models must implement 
     'article_version' => \App\Models\ArticleVersion::class,
     'article_feedback' => \App\Models\ArticleFeedback::class,
     'article_relation' => \App\Models\ArticleRelation::class,
+    'article_translation' => \App\Models\ArticleTranslation::class,
+    'category_translation' => \App\Models\CategoryTranslation::class,
 ],
 ```
 
@@ -86,6 +93,14 @@ Override any model to extend the default behavior. Custom models must implement 
 'versioning_enabled' => true,       // track article version history
 'feedback_enabled' => true,         // allow user feedback
 'track_views' => true,              // track article view counts
+```
+
+### Languages
+
+```php
+'locales' => ['en'],                // languages the knowledge base serves
+'default_locale' => 'en',           // authoritative language; must be in locales
+'missing_translation' => 'fallback', // 'fallback' or 'hide'
 ```
 
 ### Search
@@ -213,6 +228,20 @@ $staffOnly = $service->search('installation', ['visibility' => 'internal']); // 
 
 Results are ordered by `view_count` descending (most popular first).
 
+**Searching in a language.** Pass `locale` to search that language's versions. Under the fallback setting, an article whose requested-language version is missing or not readable is matched through its authoritative version instead; `hide` returns nothing for it. Each result reports the language it was served in and carries that language version in `served_translation`; the article's own columns stay the authoritative version.
+
+```php
+$results = $service->search('Passwort', ['locale' => 'de']);
+
+foreach ($results as $article) {
+    $article->served_locale;              // 'de', or 'en' when it fell back
+    $article->served_translation->title;  // the title in that language
+    $article->served_translation->slug;   // and its slug, for the link
+}
+```
+
+On PostgreSQL the German version is searched with German text-search rules (`search_languages`); MySQL, MariaDB and SQLite use the same LIKE search as above.
+
 ### Using Models Directly
 
 For queries outside the service, use `ModelResolver`:
@@ -280,6 +309,78 @@ $related = $article->relatedArticles()->publiclyVisible()->get();
 Content meant for customers and staff alike is simply `public`: staff tools use `published()` and see it as well.
 
 > **Note:** `published()` filters on status only. Do not use it on customer-facing pages, or internal content will show up there.
+
+### Localization
+
+The knowledge base can serve its articles and categories in several languages. Configure them once:
+
+```php
+// config/knowledge-base.php
+'locales' => ['en', 'de'],        // languages the knowledge base serves
+'default_locale' => 'en',         // authoritative language for new content; must be in locales
+'missing_translation' => 'fallback', // 'fallback' (default) or 'hide'
+'search_languages' => [           // PostgreSQL text-search configuration per language
+    'en' => 'english',
+    'de' => 'german',
+],
+```
+
+With a single configured language the knowledge base behaves exactly as before this change.
+
+**One version per language.** Each article and category has at most one version per configured language, with its own title, slug, excerpt, content and SEO fields (articles) or name, slug and description (categories). Category, visibility, related articles, author and counters are shared by every version.
+
+```php
+$german = $article->translations()->create([
+    'locale' => 'de',
+    'title' => 'Passwort zurücksetzen',
+    'slug' => 'passwort-zuruecksetzen',
+    'content' => 'So setzt du dein Passwort zurück.',
+]);
+```
+
+**The authoritative language.** Every article has exactly one authoritative language, defaulting to `default_locale`, and always has a version in it. Its version is mirrored onto the article's own `title`, `slug`, `content`, `excerpt` and SEO columns, in both directions: writing those columns updates the authoritative version, and editing the authoritative version updates those columns. This is what keeps existing code that reads `$article->title` working.
+
+```php
+$article->source_locale;                      // 'en'
+$article->authoritativeTranslation()->title;  // the mirrored title
+$article->changeSourceLocale('de');           // only to a language it has a version in
+```
+
+Categories always have a version in `default_locale`; their main row mirrors it.
+
+**Slugs.** A slug belongs to one article or category: the same article may use the same slug in several of its languages, but two different articles may never share a slug in any language. Saving a conflicting slug or a second version in the same language is rejected.
+
+**Outdated versions.** Saving the authoritative version can mark every other version as outdated; readers still see outdated versions.
+
+```php
+$article->flagOtherTranslationsOutdated(); // mark the other languages
+$translation->markUpToDate();              // editing or confirming a version clears it
+
+$article->versions()->forLocale('de')->get(); // the history of one language only
+```
+
+Run `php artisan kb:verify-translations` to report any drift between a main row and its authoritative version.
+
+**Serving a language.** `TranslationResolver` is the one place that decides what a reader gets, applying the article's status, the visibility rules and `missing_translation` (fallback serves the authoritative version, hide serves nothing). It reports which language was actually served, plus that version's slug, so a page can redirect.
+
+```php
+use JeffersonGoncalves\KnowledgeBase\Support\TranslationResolver;
+
+$resolver = app(TranslationResolver::class);
+
+$resolved = $resolver->resolveArticleBySlug('reset', 'de');
+// $resolved->locale       // 'de', or 'en' when it fell back
+// $resolved->slug         // the served version's slug (may differ from 'reset')
+// $resolved->translation  // the translation that was served
+
+$resolved = $resolver->resolveArticle($article, 'de');
+$resolved = $resolver->resolveCategory($category, 'de');
+$resolved = $resolver->resolveCategoryBySlug($categorySlug, 'de');
+```
+
+Pass `publicOnly: false` for staff lookups that may see internal content.
+
+> **Before migrating an existing knowledge base**, set `default_locale` to the language the existing content is written in. The upgrade tags every existing article and category with that language, so a wrong value mislabels all existing content. See the migration note below.
 
 ### Extending Models
 
@@ -370,8 +471,10 @@ All tables use the configured prefix (default: `kb_`):
 | Table | Description |
 |-------|-------------|
 | `kb_categories` | Hierarchical article categories |
+| `kb_category_translations` | Category name/slug/description per language |
 | `kb_articles` | Knowledge base articles |
-| `kb_article_versions` | Article version history |
+| `kb_article_translations` | Article title/slug/content per language |
+| `kb_article_versions` | Article version history, per language |
 | `kb_article_feedback` | User feedback on articles |
 | `kb_article_relations` | Related articles (pivot) |
 

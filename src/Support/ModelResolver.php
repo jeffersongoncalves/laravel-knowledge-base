@@ -7,8 +7,10 @@ use InvalidArgumentException;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleFeedbackContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleRelationContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleTranslationContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleVersionContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryTranslationContract;
 
 class ModelResolver
 {
@@ -31,6 +33,18 @@ class ModelResolver
     public static function articleVersion(): string
     {
         return static::resolve('article_version', ArticleVersionContract::class);
+    }
+
+    /** @return class-string<Model&ArticleTranslationContract> */
+    public static function articleTranslation(): string
+    {
+        return static::resolve('article_translation', ArticleTranslationContract::class);
+    }
+
+    /** @return class-string<Model&CategoryTranslationContract> */
+    public static function categoryTranslation(): string
+    {
+        return static::resolve('category_translation', CategoryTranslationContract::class);
     }
 
     /** @return class-string<Model&ArticleFeedbackContract> */

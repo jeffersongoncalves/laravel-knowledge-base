@@ -10,4 +10,8 @@ return [
         'public' => 'Public',
         'internal' => 'Internal',
     ],
+    'translation_status' => [
+        'draft' => 'Draft',
+        'published' => 'Published',
+    ],
 ];
