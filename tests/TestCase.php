@@ -5,10 +5,12 @@ namespace JeffersonGoncalves\KnowledgeBase\Tests;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use JeffersonGoncalves\KnowledgeBase\KnowledgeBaseServiceProvider;
+use JeffersonGoncalves\PestPluginDatabaseMigrations\LoadsPackageMigrations;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
 {
+    use LoadsPackageMigrations;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -69,36 +71,11 @@ abstract class TestCase extends Orchestra
     }
 
     /**
-     * Same order as KnowledgeBaseServiceProvider::hasMigrations(). SQLite
-     * doesn't enforce foreign keys at CREATE TABLE time, but MySQL/Postgres
-     * do, and alphabetical order breaks it here: "kb_article_versions" (and
-     * feedback, relations) sort before "kb_articles" they reference
-     * ('_' < 's' in ASCII), and "kb_articles" sorts before "kb_categories"
-     * it also references.
+     * Runs the migrations in the order KnowledgeBaseServiceProvider::hasMigrations()
+     * declares, so a new migration only needs to be added there.
      */
-    private const MIGRATION_ORDER = [
-        'create_kb_categories_table',
-        'create_kb_articles_table',
-        'create_kb_article_versions_table',
-        'create_kb_article_feedback_table',
-        'create_kb_article_relations_table',
-        'add_kb_content_localization',
-        'add_kb_collections',
-    ];
-
     protected function defineDatabaseMigrations(): void
     {
-        $stubsPath = __DIR__.'/../database/migrations';
-        $tempPath = sys_get_temp_dir().'/laravel-knowledge-base-migrations';
-
-        if (! is_dir($tempPath)) {
-            mkdir($tempPath, 0755, true);
-        }
-
-        foreach (self::MIGRATION_ORDER as $index => $name) {
-            copy($stubsPath.'/'.$name.'.php.stub', $tempPath.'/'.sprintf('%03d_%s.php', $index, $name));
-        }
-
-        $this->loadMigrationsFrom($tempPath);
+        $this->loadPackageMigrations(KnowledgeBaseServiceProvider::class);
     }
 }
