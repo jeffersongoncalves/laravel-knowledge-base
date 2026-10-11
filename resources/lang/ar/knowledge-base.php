@@ -14,4 +14,8 @@ return [
         'draft' => 'مسودة',
         'published' => 'منشور',
     ],
+    'asset_kind' => [
+        'image' => 'صورة',
+        'file' => 'ملف',
+    ],
 ];

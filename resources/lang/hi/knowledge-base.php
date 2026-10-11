@@ -14,4 +14,8 @@ return [
         'draft' => 'ड्राफ्ट',
         'published' => 'प्रकाशित',
     ],
+    'asset_kind' => [
+        'image' => 'छवि',
+        'file' => 'फ़ाइल',
+    ],
 ];

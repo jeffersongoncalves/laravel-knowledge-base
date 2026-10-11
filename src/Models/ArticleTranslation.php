@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Concerns\SyncsAuthoritativeTranslation;
+use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleTranslationContract;
+use JeffersonGoncalves\KnowledgeBase\Support\ArticleAssets;
 use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 
@@ -63,6 +65,23 @@ class ArticleTranslation extends Model implements ArticleTranslationContract
     public function getTable(): string
     {
         return (config('knowledge-base.table_prefix') ?? '').'article_translations';
+    }
+
+    protected static function booted(): void
+    {
+        // Deleting a language version removes that language's assets; the
+        // authoritative version cannot be deleted (design D7).
+        static::deleting(function (ArticleTranslation $translation) {
+            if ($translation->isAuthoritative()) {
+                return;
+            }
+
+            $article = $translation->article()->first();
+
+            if ($article instanceof Model && $article instanceof ArticleContract) {
+                app(ArticleAssets::class)->deleteForLocale($article, (string) $translation->getAttribute('locale'));
+            }
+        });
     }
 
     public function article(): BelongsTo

@@ -19,6 +19,7 @@ use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Concerns\HasTranslations;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableArticleContract;
+use JeffersonGoncalves\KnowledgeBase\Support\ArticleAssets;
 use JeffersonGoncalves\KnowledgeBase\Support\Locales;
 use JeffersonGoncalves\KnowledgeBase\Support\ModelResolver;
 use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
@@ -50,6 +51,7 @@ use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
  * @property-read Category $category
  * @property-read Model $author
  * @property-read Collection<int, ArticleVersion> $versions
+ * @property-read Collection<int, ArticleAsset> $assets
  * @property-read Collection<int, ArticleTranslation> $translations
  * @property-read Collection<int, ArticleFeedback> $feedback
  * @property-read Collection<int, Article> $relatedArticles
@@ -121,6 +123,12 @@ class Article extends Model implements ArticleContract, TranslatableArticleContr
             if (empty($article->uuid)) {
                 $article->uuid = (string) Str::uuid();
             }
+        });
+
+        // A soft delete keeps the article's assets; a force delete removes its
+        // files and folder (the rows cascade with the article, see design D7).
+        static::forceDeleting(function (Article $article) {
+            app(ArticleAssets::class)->purge($article);
         });
     }
 
@@ -196,6 +204,14 @@ class Article extends Model implements ArticleContract, TranslatableArticleContr
     public function versions(): HasMany
     {
         return $this->hasMany(ModelResolver::articleVersion(), 'article_id');
+    }
+
+    /**
+     * The images and files this article owns (see design D2).
+     */
+    public function assets(): HasMany
+    {
+        return $this->hasMany(ModelResolver::articleAsset(), 'article_id');
     }
 
     public function feedback(): HasMany

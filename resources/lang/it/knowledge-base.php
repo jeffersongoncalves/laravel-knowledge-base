@@ -14,4 +14,8 @@ return [
         'draft' => 'Bozza',
         'published' => 'Pubblicato',
     ],
+    'asset_kind' => [
+        'image' => 'Immagine',
+        'file' => 'File',
+    ],
 ];

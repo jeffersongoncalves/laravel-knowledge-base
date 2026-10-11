@@ -14,4 +14,8 @@ return [
         'draft' => 'Brouillon',
         'published' => 'Publié',
     ],
+    'asset_kind' => [
+        'image' => 'Image',
+        'file' => 'Fichier',
+    ],
 ];
