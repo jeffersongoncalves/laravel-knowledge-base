@@ -106,12 +106,18 @@ return [
     |
     | Where the images and files that belong to articles are stored. Every
     | article keeps its own folder under `directory/articles/{uuid}` on `disk`,
-    | so a backup or restore of one article is a folder copy. The disk must be
-    | publicly readable, since readers see these files: use 'public' (run
-    | `php artisan storage:link` once) or a cloud disk such as 's3'.
+    | so a backup or restore of one article is a folder copy. The default
+    | 'local' disk is private: readers get the files through `route` below,
+    | which checks the article's visibility on every request. Images and
+    | files of internal articles are only served through signed URLs that
+    | expire after `signed_url_minutes` (rounded up to the end of the hour).
     |
     | Changing the disk or directory later does not move existing files:
-    | assets remember the disk and path they were stored on.
+    | assets remember the disk and path they were stored on. Run
+    | `php artisan kb:move-assets` to move them to the configured disk.
+    |
+    | Set `route.enabled` to false to link to the disk's own URLs instead
+    | (then the disk must be public, and so are internal articles' files).
     |
     | `images` and `files` each accept only the listed MIME types (checked on
     | the file's contents, not its name) up to `max_size` kilobytes. SVG is
@@ -120,8 +126,15 @@ return [
     |
     */
     'attachments' => [
-        'disk' => env('KB_ATTACHMENTS_DISK', 'public'),
+        'disk' => env('KB_ATTACHMENTS_DISK', 'local'),
         'directory' => env('KB_ATTACHMENTS_DIRECTORY', 'knowledge-base'),
+        'route' => [
+            'enabled' => (bool) env('KB_ATTACHMENTS_ROUTE', true),
+            'prefix' => env('KB_ATTACHMENTS_ROUTE_PREFIX', 'knowledge-base/assets'),
+            'middleware' => [],
+            'signed_url_minutes' => (int) env('KB_ATTACHMENTS_SIGNED_URL_MINUTES', 30),
+            'cache_max_age' => (int) env('KB_ATTACHMENTS_CACHE_MAX_AGE', 3600),
+        ],
         'images' => [
             'accepted_types' => ['image/jpeg', 'image/png', 'image/webp'],
             'max_size' => (int) env('KB_ATTACHMENTS_IMAGES_MAX_SIZE', 5120),

@@ -1,9 +1,16 @@
 <?php
 
-it('stores attachments under one knowledge base directory on the public disk by default', function () {
+it('stores attachments under one knowledge base directory on the private local disk by default', function () {
     expect(config('knowledge-base.attachments'))->toBe([
-        'disk' => 'public',
+        'disk' => 'local',
         'directory' => 'knowledge-base',
+        'route' => [
+            'enabled' => true,
+            'prefix' => 'knowledge-base/assets',
+            'middleware' => [],
+            'signed_url_minutes' => 30,
+            'cache_max_age' => 3600,
+        ],
         'images' => [
             'accepted_types' => ['image/jpeg', 'image/png', 'image/webp'],
             'max_size' => 5120,

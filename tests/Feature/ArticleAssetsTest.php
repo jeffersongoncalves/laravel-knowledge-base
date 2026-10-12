@@ -199,7 +199,17 @@ describe('Allowed types and sizes', function () {
 });
 
 describe('Asset URLs', function () {
-    it('builds the URL from the asset disk and path', function () {
+    it('serves the asset through the route, named by its uuid and file name', function () {
+        $asset = $this->assets->store($this->article, UploadedFile::fake()->image('fern.jpg'), AssetKind::Image);
+
+        expect($this->assets->url($asset))->toStartWith(
+            'http://localhost/knowledge-base/assets/'.$asset->getAttribute('uuid').'/'.basename($asset->getAttribute('path'))
+        );
+    });
+
+    it('builds the URL from the asset disk and path when serving is turned off', function () {
+        config(['knowledge-base.attachments.route.enabled' => false]);
+
         $asset = $this->assets->store($this->article, UploadedFile::fake()->image('fern.jpg'), AssetKind::Image);
 
         expect($this->assets->url($asset))->toBe(Storage::disk('public')->url($asset->getAttribute('path')));

@@ -24,6 +24,9 @@ beforeEach(function () {
 
     Storage::fake('public');
 
+    // Signed URLs of non-public articles depend on the clock.
+    $this->freezeTime();
+
     User::createTable();
     $this->assets = app(ArticleAssets::class);
     $this->user = User::create(['name' => 'John', 'email' => 'john@example.com']);
@@ -60,7 +63,7 @@ describe('Content refers to assets, never to URLs', function () {
 
         $resolved = $this->assets->resolve(imageMarkup($asset->getAttribute('uuid')), $this->article);
 
-        expect($resolved)->toContain('src="'.$this->assets->url($asset).'"')
+        expect($resolved)->toContain('src="'.e($this->assets->url($asset)).'"')
             ->and($resolved)->not->toContain('old.example.com')
             ->and($resolved)->toContain('data-id="'.$asset->getAttribute('uuid').'"');
     });
@@ -69,7 +72,11 @@ describe('Content refers to assets, never to URLs', function () {
         $asset = $this->assets->store($this->article, UploadedFile::fake()->image('fern.jpg'), AssetKind::Image);
 
         Storage::fake('archive');
-        config(['knowledge-base.attachments.disk' => 'archive']);
+        config([
+            'knowledge-base.attachments.disk' => 'archive',
+            // Disk URLs, to see which disk the URL comes from.
+            'knowledge-base.attachments.route.enabled' => false,
+        ]);
 
         $resolved = $this->assets->resolve(imageMarkup($asset->getAttribute('uuid')), $this->article);
 
@@ -96,7 +103,7 @@ describe('Resolving content for readers', function () {
 
         $resolved = $this->assets->resolve(imageMarkup($asset->getAttribute('uuid')), $this->article->fresh(), forPublic: true);
 
-        expect($resolved)->toContain('src="'.$this->assets->url($asset).'"');
+        expect($resolved)->toContain('src="'.e($this->assets->url($asset)).'"');
     });
 
     it('leaves out an image whose asset was deleted for a public reader', function () {
@@ -135,7 +142,7 @@ describe('Resolving content for readers', function () {
 
         $resolved = $this->assets->resolve($html, $this->article);
 
-        expect($resolved)->toContain('href="'.$this->assets->url($asset).'"');
+        expect($resolved)->toContain('href="'.e($this->assets->url($asset)).'"');
 
         $this->assets->delete($asset);
 
@@ -150,7 +157,7 @@ describe('Resolving content for readers', function () {
 
         $resolved = $this->assets->resolve($html, $this->article);
 
-        expect($resolved)->toContain('href="'.$this->assets->url($asset).'"')
+        expect($resolved)->toContain('href="'.e($this->assets->url($asset)).'"')
             ->and($resolved)->not->toContain('old.example.com');
     });
 });
