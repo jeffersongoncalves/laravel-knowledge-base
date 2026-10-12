@@ -477,7 +477,7 @@ Assets are stored on a private disk and served by a route of this package, `GET 
 - **Publicly visible article:** anyone can open the file. `url()` returns a plain URL that never changes, so pages and CDNs can cache it; the response is cacheable for `cache_max_age` seconds.
 - **Any other article** (internal, draft, archived, in an internal or inactive category, trashed): only through a signed URL that `url()` makes, valid for `signed_url_minutes` and rounded up to the end of the hour. Without a valid signature the response is a 404, so nobody can tell the file exists.
 
-Because the check happens on each request, nothing moves when visibility changes: once an article or one of its categories is made internal, the plain URLs of its files stop working. The URL ends in the file's stored name only for readable links and downloads; the asset is found by its uuid.
+Because the check happens on each request, nothing moves when visibility changes: once an article or one of its categories is made internal, the plain URLs of its files stop working at the server. Copies already cached by browsers or a CDN may still be served for up to `cache_max_age` seconds; lower `cache_max_age`, or purge your CDN, when revocation must be immediate. The URL ends in the file's stored name only for readable links and downloads; the asset is found by its uuid.
 
 Set `prefix` and `middleware` to fit your app. Set `enabled` to `false` to link to the disk's own URLs instead, as in 2.0: then the disk must be public (`public` with `php artisan storage:link`, or a public cloud disk), and so are the files of internal articles.
 
