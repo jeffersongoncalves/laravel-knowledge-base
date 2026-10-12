@@ -2,12 +2,14 @@
 
 namespace JeffersonGoncalves\KnowledgeBase\Support;
 
+use Carbon\CarbonInterface;
 use DOMDocument;
 use DOMElement;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\File;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -27,6 +29,9 @@ use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
  */
 class ArticleAssets
 {
+    /** The route that serves assets (see the `attachments.route` config). */
+    public const ROUTE = 'knowledge-base.assets.show';
+
     /**
      * The configured disk for new assets.
      */
@@ -103,12 +108,74 @@ class ArticleAssets
     }
 
     /**
-     * The current URL of an asset, built from its own disk and path (design
-     * D5). Never stored in content: content refers to the asset by its uuid.
+     * The current URL of an asset (design D5). Never stored in content:
+     * content refers to the asset by its uuid.
+     *
+     * Served through the core's route: a plain, stable URL when the article is
+     * publicly visible, a temporary signed URL otherwise. With the route
+     * turned off, the disk's own URL. Pass `$public` when the article's
+     * visibility is already known, to skip looking it up again.
      */
-    public function url(Model&ArticleAssetContract $asset): string
+    public function url(Model&ArticleAssetContract $asset, ?bool $public = null): string
     {
-        return Storage::disk((string) $asset->getAttribute('disk'))->url((string) $asset->getAttribute('path'));
+        if (! $this->served()) {
+            return Storage::disk((string) $asset->getAttribute('disk'))->url((string) $asset->getAttribute('path'));
+        }
+
+        $parameters = [
+            'asset' => (string) $asset->getAttribute('uuid'),
+            'name' => basename((string) $asset->getAttribute('path')),
+        ];
+
+        if ($public ?? $this->isServedPublicly($asset)) {
+            return URL::route(self::ROUTE, $parameters);
+        }
+
+        return URL::temporarySignedRoute(self::ROUTE, $this->signedUrlExpiry(), $parameters);
+    }
+
+    /**
+     * Whether assets are served through the core's route.
+     */
+    public function served(): bool
+    {
+        return (bool) config('knowledge-base.attachments.route.enabled', true);
+    }
+
+    /**
+     * Whether anyone may open the asset without a signature: its article
+     * exists, isn't trashed and is publicly visible.
+     */
+    public function isServedPublicly(Model&ArticleAssetContract $asset): bool
+    {
+        // The relation leaves out a soft-deleted article: it counts as not public.
+        $article = $asset->article()->first();
+
+        return $article instanceof Model && $this->articleIsServedPublicly($article);
+    }
+
+    /**
+     * The single visibility rule, plus: a trashed article is never public.
+     */
+    protected function articleIsServedPublicly(Model $article): bool
+    {
+        if (method_exists($article, 'trashed') && $article->trashed()) {
+            return false;
+        }
+
+        return Visibility::articleIsPubliclyVisible($article);
+    }
+
+    /**
+     * When a signed URL made now expires: the configured minutes, rounded up
+     * to the end of the hour (as Filament does), so a URL stays the same for
+     * a while and browsers can reuse a loaded image.
+     */
+    protected function signedUrlExpiry(): CarbonInterface
+    {
+        $minutes = max(1, (int) config('knowledge-base.attachments.route.signed_url_minutes', 30));
+
+        return now()->addMinutes($minutes)->endOfHour();
     }
 
     /**
@@ -131,7 +198,10 @@ class ArticleAssets
 
         $index = $this->assetIndex($article);
 
-        return $this->transform($html, function (DOMElement $root) use ($index, $article, $forPublic): void {
+        // Decided once per call, not per reference: it costs a category query.
+        $public = $this->served() && $this->articleIsServedPublicly($article);
+
+        return $this->transform($html, function (DOMElement $root) use ($index, $article, $forPublic, $public): void {
             foreach (iterator_to_array($root->getElementsByTagName('img')) as $image) {
                 $id = trim($image->getAttribute('data-id'));
 
@@ -142,7 +212,7 @@ class ArticleAssets
                 $asset = $index['byUuid'][$id] ?? null;
 
                 if ($asset instanceof Model) {
-                    $image->setAttribute('src', $this->url($asset));
+                    $image->setAttribute('src', $this->url($asset, $public));
 
                     continue;
                 }
@@ -160,7 +230,7 @@ class ArticleAssets
                 }
 
                 if ($reference['asset'] instanceof Model) {
-                    $link->setAttribute('href', $this->url($reference['asset']));
+                    $link->setAttribute('href', $this->url($reference['asset'], $public));
 
                     continue;
                 }
@@ -255,11 +325,18 @@ class ArticleAssets
         // Remove the rows explicitly as well as their files: the foreign-key
         // cascade covers the rows on databases that enforce it, but deleting
         // them here keeps the behaviour identical everywhere.
+        // The folder can exist on every disk the article's assets were stored
+        // on (the configured disk may have changed since, design D5).
+        $disks = [$this->disk() => true];
+
         foreach ($this->assetsOf($article) as $asset) {
+            $disks[(string) $asset->getAttribute('disk')] = true;
             $this->delete($asset);
         }
 
-        Storage::disk($this->disk())->deleteDirectory($this->articleDirectory($article));
+        foreach (array_keys($disks) as $disk) {
+            Storage::disk($disk)->deleteDirectory($this->articleDirectory($article));
+        }
     }
 
     /**
@@ -411,6 +488,19 @@ class ArticleAssets
             }
         }
 
+        // A served URL names the asset by its uuid (design D4).
+        $served = $this->servedReference($href);
+
+        if ($served !== null) {
+            return ['asset' => $index['byUuid'][$served] ?? null, 'identifier' => $served];
+        }
+
+        foreach ($index['byUuid'] as $uuid => $asset) {
+            if ($uuid !== '' && str_contains($href, '/'.$uuid.'/')) {
+                return ['asset' => $asset, 'identifier' => $uuid];
+            }
+        }
+
         // Otherwise recognise the article's folder, so a link to a deleted file
         // is still reported and unlinked for readers.
         $relative = $this->assetRelativePart($href, $article);
@@ -420,6 +510,21 @@ class ArticleAssets
         }
 
         return null;
+    }
+
+    /**
+     * The asset uuid in a URL of the serving route, or null when the URL does
+     * not point at the route.
+     */
+    protected function servedReference(string $href): ?string
+    {
+        $prefix = trim((string) config('knowledge-base.attachments.route.prefix', 'knowledge-base/assets'), '/');
+
+        if ($prefix === '' || preg_match('~/'.preg_quote($prefix, '~').'/([0-9a-fA-F-]{36})(?:/|$)~', $href, $match) !== 1) {
+            return null;
+        }
+
+        return Str::isUuid($match[1]) ? strtolower($match[1]) : null;
     }
 
     /**

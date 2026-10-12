@@ -2,6 +2,7 @@
 
 namespace JeffersonGoncalves\KnowledgeBase;
 
+use JeffersonGoncalves\KnowledgeBase\Commands\MoveAssetsCommand;
 use JeffersonGoncalves\KnowledgeBase\Commands\PruneAssetsCommand;
 use JeffersonGoncalves\KnowledgeBase\Commands\VerifyTranslationsCommand;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleAssetContract;
@@ -29,8 +30,10 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
         $package->name(static::$name)
             ->hasConfigFile()
             ->hasTranslations()
+            ->hasRoute('knowledge-base')
             ->hasCommand(VerifyTranslationsCommand::class)
             ->hasCommand(PruneAssetsCommand::class)
+            ->hasCommand(MoveAssetsCommand::class)
             ->hasMigrations([
                 'create_kb_categories_table',
                 'create_kb_articles_table',
