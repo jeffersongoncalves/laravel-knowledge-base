@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.1.0 - 2026-10-12
+
+### What's new
+
+- **Private article assets** — images and files are now stored on a private disk (default `local`) and served by a package route, `GET /knowledge-base/assets/{uuid}/{name}` (`knowledge-base.assets.show`), that checks the article's visibility on every request (#21).
+  - Publicly visible articles: plain, cacheable URLs (`cache_max_age`).
+  - Internal, draft, archived or hidden articles: signed URLs only (`signed_url_minutes`); anything else is a 404.
+  
+- New `attachments.route` config: `enabled`, `prefix`, `middleware`, `signed_url_minutes`, `cache_max_age`.
+- New `php artisan kb:move-assets` command (with `--dry-run`) to move existing files to the configured disk.
+
+### Upgrading from 2.0
+
+Existing assets keep working through the route straight away, but files stored on the `public` disk also stay reachable at their old `/storage/...` URL. If you published the config, set `attachments.disk` to `local` (or a private cloud disk) and run `php artisan kb:move-assets`. Set `attachments.route.enabled` to `false` to keep the 2.0 behaviour (public disk URLs).
+
+Note: after an article becomes internal, copies already cached by browsers or a CDN may be served for up to `cache_max_age` seconds — lower it or purge your CDN for immediate revocation.
+
+Thanks @rcoenen!
+
+**Full Changelog**: https://github.com/jeffersongoncalves/laravel-knowledge-base/compare/v2.0.0...v2.1.0
+
 ## v2.0.0 - 2026-10-11
 
 ### Breaking changes
