@@ -45,6 +45,15 @@ class MoveAssetsCommand extends Command
                 continue;
             }
 
+            // Two disk names for the same storage: copying a file onto itself and
+            // deleting the "old" one would lose it, so only the record changes.
+            if ($this->sharesStorage($source, $target)) {
+                $asset->forceFill(['disk' => $target])->saveQuietly();
+                $moved++;
+
+                continue;
+            }
+
             try {
                 $this->moveFile($source, $target, $path);
             } catch (Throwable $exception) {
@@ -74,6 +83,30 @@ class MoveAssetsCommand extends Command
         }
 
         return $failed === 0 ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Whether two disks are configured to point at the same place: the same
+     * settings apart from the ones that only affect URLs and behaviour.
+     */
+    protected function sharesStorage(string $source, string $target): bool
+    {
+        $location = function (string $disk): array {
+            $config = (array) config("filesystems.disks.{$disk}", []);
+            unset($config['url'], $config['visibility'], $config['throw'], $config['report'], $config['serve'], $config['permissions']);
+
+            if (isset($config['root']) && is_string($config['root'])) {
+                $config['root'] = rtrim((string) (realpath($config['root']) ?: $config['root']), '/');
+            }
+
+            ksort($config);
+
+            return $config;
+        };
+
+        $from = $location($source);
+
+        return $from !== [] && $from === $location($target);
     }
 
     protected function moveFile(string $source, string $target, string $path): void

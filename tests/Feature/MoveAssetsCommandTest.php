@@ -115,3 +115,21 @@ it('purges an article folder on every disk its assets used', function () {
     expect(Storage::disk('public')->directoryExists($folder))->toBeFalse()
         ->and(Storage::disk('local')->directoryExists($folder))->toBeFalse();
 });
+
+it('only updates the records when both disks point at the same storage', function () {
+    $root = sys_get_temp_dir().'/kb-move-same-'.uniqid();
+    config([
+        'filesystems.disks.first' => ['driver' => 'local', 'root' => $root],
+        'filesystems.disks.second' => ['driver' => 'local', 'root' => $root.'/', 'visibility' => 'private'],
+        'knowledge-base.attachments.disk' => 'first',
+    ]);
+    $asset = $this->assets->store($this->article, UploadedFile::fake()->image('same.jpg'), AssetKind::Image);
+
+    config(['knowledge-base.attachments.disk' => 'second']);
+    $this->artisan('kb:move-assets')->assertSuccessful();
+
+    expect($asset->fresh()->disk)->toBe('second')
+        ->and(Storage::disk('second')->exists($asset->path))->toBeTrue();
+
+    Storage::disk('first')->deleteDirectory('knowledge-base');
+});
