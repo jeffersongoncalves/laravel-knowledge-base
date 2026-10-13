@@ -16,6 +16,10 @@
 
 A Laravel package for building knowledge bases with articles, categories, versioning, feedback, and search.
 
+## See it in action
+
+[laravel-knowledge-base-demo](https://github.com/rcoenen/laravel-knowledge-base-demo) is a help center built with this package and [filament-knowledge-base](https://github.com/jeffersongoncalves/filament-knowledge-base), for Fernleaf, a made-up plant shop. It has public help pages in English and German (search, an FAQ, topics, notices for missing or outdated translations) and the Filament admin, with images and files per article and staff-only articles. It runs locally with Docker in a few minutes; screenshots are in its README.
+
 ## Features
 
 - **Article Management** — Create, update, publish, archive, and soft-delete articles with UUID and slug routing
