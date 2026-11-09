@@ -124,6 +124,27 @@ describe('Category page', function () {
             ->and($page->articles[0]->model->getKey())->toBe($visible->id);
     });
 
+    it('lists articles newest first when none has an order', function () {
+        $old = hcArticle(['slug' => 'old', 'created_at' => now()->subDays(2)]);
+        $new = hcArticle(['slug' => 'new', 'created_at' => now()->subDay()]);
+
+        $page = $this->helpCenter->category('billing', 'en');
+
+        expect(array_map(fn ($item) => $item->model->getKey(), $page->articles))->toBe([$new->id, $old->id]);
+    });
+
+    it('lists articles by sort order, then newest first', function () {
+        $advanced = hcArticle(['slug' => 'advanced', 'sort_order' => 2, 'created_at' => now()->subDay()]);
+        $start = hcArticle(['slug' => 'start', 'sort_order' => 1, 'created_at' => now()->subDays(3)]);
+        $older = hcArticle(['slug' => 'older', 'sort_order' => 0, 'created_at' => now()->subDays(2)]);
+        $newer = hcArticle(['slug' => 'newer', 'sort_order' => 0, 'created_at' => now()->subHour()]);
+
+        $page = $this->helpCenter->category('billing', 'en');
+
+        expect(array_map(fn ($item) => $item->model->getKey(), $page->articles))
+            ->toBe([$newer->id, $older->id, $start->id, $advanced->id]);
+    });
+
     it('redirects a category slug from another language', function () {
         $this->public->translations()->create(['locale' => 'de', 'name' => 'Abrechnung', 'slug' => 'abrechnung']);
 

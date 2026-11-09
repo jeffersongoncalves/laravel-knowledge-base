@@ -258,6 +258,7 @@ class HelpCenter
         $articles = Visibility::applyPublic(
             $articleClass::query()->where('category_id', $category->getKey())
         )
+            ->orderBy('sort_order')
             ->orderByDesc('created_at')
             ->get();
 

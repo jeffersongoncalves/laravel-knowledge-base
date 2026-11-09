@@ -44,6 +44,7 @@ class KnowledgeBaseServiceProvider extends PackageServiceProvider
                 'add_kb_collections',
                 'remove_kb_article_source_locale',
                 'add_kb_article_assets',
+                'add_kb_article_sort_order',
             ]);
     }
 
