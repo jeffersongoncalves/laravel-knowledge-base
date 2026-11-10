@@ -541,7 +541,7 @@ $results = $help->search('reset', 'de', 20);              // public, language-aw
 ```
 
 - An `ArticlePage` carries the served version (`translation`), the served language (`locale`), `isFallback` (served ≠ requested), `redirectSlug` (set when the requested slug is not the served version's slug), `alternates` (locale ⇒ slug of every language the article can actually be read in), `breadcrumb` and `related`.
-- A `CategoryPage` carries the resolved category, its `children` and its `articles`.
+- A `CategoryPage` carries the resolved category, its `children` and its `articles`, ordered by the article's `sort_order`, then newest first (all at the default 0 = newest first). Search results ignore `sort_order`.
 - A `CollectionPage` carries the resolved collection and its public `articles` in order.
 - A `CategoryNode` carries the resolved category, a slug and name in the served language, its public article count (`articlesCount`, counting only the articles a reader of that language is served) and its `children`.
 

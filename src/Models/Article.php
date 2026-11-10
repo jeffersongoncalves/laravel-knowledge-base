@@ -44,6 +44,7 @@ use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
  * @property int $not_helpful_count
  * @property Carbon|null $published_at
  * @property int $current_version
+ * @property int $sort_order
  * @property array|null $metadata
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -85,6 +86,7 @@ class Article extends Model implements ArticleContract, TranslatableArticleContr
         'seo_keywords',
         'published_at',
         'metadata',
+        'sort_order',
     ];
 
     protected $casts = [
@@ -96,6 +98,7 @@ class Article extends Model implements ArticleContract, TranslatableArticleContr
         'helpful_count' => 'integer',
         'not_helpful_count' => 'integer',
         'current_version' => 'integer',
+        'sort_order' => 'integer',
     ];
 
     /**

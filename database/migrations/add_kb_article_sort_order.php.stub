@@ -1,0 +1,42 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Adds `sort_order` to articles: the order an editor gives the articles of a
+ * category. Every existing article gets 0, so the category order stays newest
+ * first until someone reorders. Purely additive; rollback drops the column.
+ */
+return new class extends Migration
+{
+    public function up(): void
+    {
+        $prefix = config('knowledge-base.table_prefix') ?? '';
+
+        if (Schema::hasColumn($prefix.'articles', 'sort_order')) {
+            return;
+        }
+
+        Schema::table($prefix.'articles', function (Blueprint $table) {
+            // ponytail: no (category_id, sort_order) index. On MySQL it takes
+            // over the category foreign key's index and then cannot be dropped
+            // on rollback; the foreign key index already narrows by category.
+            $table->unsignedInteger('sort_order')->default(0);
+        });
+    }
+
+    public function down(): void
+    {
+        $prefix = config('knowledge-base.table_prefix') ?? '';
+
+        if (! Schema::hasColumn($prefix.'articles', 'sort_order')) {
+            return;
+        }
+
+        Schema::table($prefix.'articles', function (Blueprint $table) {
+            $table->dropColumn('sort_order');
+        });
+    }
+};
