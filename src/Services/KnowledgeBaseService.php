@@ -259,7 +259,10 @@ class KnowledgeBaseService
      * Article::publiclyVisible()), so internal articles and articles in
      * internal, inactive or deleted categories are excluded. Staff content is
      * strictly opt-in: `include_internal` returns every published article, and
-     * `visibility: internal` returns only the staff-only ones.
+     * `visibility: internal` returns only the staff-only ones. `audience`
+     * (an ArticleVisibility or its value) returns what that audience may read,
+     * e.g. `audience: customers` for signed-in customers; `visibility:
+     * customers` is the same.
      *
      * @param  array<string, mixed>  $options
      * @return Collection<int, Article>
@@ -411,14 +414,22 @@ class KnowledgeBaseService
             $builder->where('category_id', $options['category_id']);
         }
 
-        if (isset($options['visibility'])) {
+        if (isset($options['audience'])) {
+            $audience = $options['audience'] instanceof ArticleVisibility
+                ? $options['audience']
+                : ArticleVisibility::from($options['audience']);
+
+            Visibility::applyFor($builder, $audience);
+        } elseif (isset($options['visibility'])) {
             $visibility = $options['visibility'] instanceof ArticleVisibility
                 ? $options['visibility']
                 : ArticleVisibility::from($options['visibility']);
 
-            $visibility === ArticleVisibility::Public
-                ? Visibility::applyPublic($builder)
-                : Visibility::applyStaffOnly($builder);
+            match ($visibility) {
+                ArticleVisibility::Public => Visibility::applyPublic($builder),
+                ArticleVisibility::Customers => Visibility::applyCustomer($builder),
+                ArticleVisibility::Internal => Visibility::applyStaffOnly($builder),
+            };
         } elseif ($options['include_internal'] ?? false) {
             $builder->where('status', ArticleStatus::Published);
         } else {

@@ -4,6 +4,7 @@ namespace JeffersonGoncalves\KnowledgeBase\Support;
 
 use Illuminate\Database\Eloquent\Model;
 use JeffersonGoncalves\KnowledgeBase\Enums\ArticleStatus;
+use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
 use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\CategoryContract;
@@ -21,11 +22,13 @@ use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
 class TranslationResolver
 {
     /**
-     * Resolve an article for a requested locale.
+     * Resolve an article for a requested locale. With `$publicOnly` the article
+     * must be visible to `$audience` (the public by default); without it no
+     * visibility check applies (staff lookups).
      */
-    public function resolveArticle(Model&ArticleContract&TranslatableContract $article, string $locale, bool $publicOnly = true): ?ResolvedTranslation
+    public function resolveArticle(Model&ArticleContract&TranslatableContract $article, string $locale, bool $publicOnly = true, ArticleVisibility $audience = ArticleVisibility::Public): ?ResolvedTranslation
     {
-        if (! $this->articleReadable($article, $publicOnly)) {
+        if (! $this->articleReadable($article, $publicOnly, $audience)) {
             return null;
         }
 
@@ -57,7 +60,7 @@ class TranslationResolver
      * Find the one article that owns a slug (any language, see design D1a) and
      * resolve it for the requested locale.
      */
-    public function resolveArticleBySlug(string $slug, string $locale, bool $publicOnly = true): ?ResolvedTranslation
+    public function resolveArticleBySlug(string $slug, string $locale, bool $publicOnly = true, ArticleVisibility $audience = ArticleVisibility::Public): ?ResolvedTranslation
     {
         $translationClass = ModelResolver::articleTranslation();
 
@@ -73,15 +76,15 @@ class TranslationResolver
             return null;
         }
 
-        return $this->resolveArticle($article, $locale, $publicOnly);
+        return $this->resolveArticle($article, $locale, $publicOnly, $audience);
     }
 
     /**
      * Resolve a category for a requested locale.
      */
-    public function resolveCategory(Model&CategoryContract&TranslatableContract $category, string $locale, bool $publicOnly = true): ?ResolvedTranslation
+    public function resolveCategory(Model&CategoryContract&TranslatableContract $category, string $locale, bool $publicOnly = true, ArticleVisibility $audience = ArticleVisibility::Public): ?ResolvedTranslation
     {
-        if ($publicOnly && ! Visibility::categoryIsPubliclyVisible($category)) {
+        if ($publicOnly && ! Visibility::categoryIsVisibleTo($category, $audience)) {
             return null;
         }
 
@@ -113,7 +116,7 @@ class TranslationResolver
      * Find the one category that owns a slug (any language) and resolve it for
      * the requested locale.
      */
-    public function resolveCategoryBySlug(string $slug, string $locale, bool $publicOnly = true): ?ResolvedTranslation
+    public function resolveCategoryBySlug(string $slug, string $locale, bool $publicOnly = true, ArticleVisibility $audience = ArticleVisibility::Public): ?ResolvedTranslation
     {
         $translationClass = ModelResolver::categoryTranslation();
 
@@ -129,7 +132,7 @@ class TranslationResolver
             return null;
         }
 
-        return $this->resolveCategory($category, $locale, $publicOnly);
+        return $this->resolveCategory($category, $locale, $publicOnly, $audience);
     }
 
     /**
@@ -193,7 +196,7 @@ class TranslationResolver
         return $this->resolveCollection($collection, $locale, $publicOnly);
     }
 
-    protected function articleReadable(Model&ArticleContract $article, bool $publicOnly): bool
+    protected function articleReadable(Model&ArticleContract $article, bool $publicOnly, ArticleVisibility $audience): bool
     {
         $status = $article->getAttribute('status');
         $published = $status instanceof ArticleStatus
@@ -204,7 +207,7 @@ class TranslationResolver
             return false;
         }
 
-        return ! $publicOnly || Visibility::articleIsPubliclyVisible($article);
+        return ! $publicOnly || Visibility::articleIsVisibleTo($article, $audience);
     }
 
     protected function translationReadable(Model $translation): bool

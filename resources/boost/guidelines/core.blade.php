@@ -9,7 +9,7 @@ This package provides a complete knowledge base system for Laravel applications 
 - **Versions**: Article version history with editor tracking and change notes.
 - **Feedback**: User feedback (helpful/not helpful) with optional comments and IP tracking.
 - **Related Articles**: Many-to-many self-referencing relationships between articles.
-- **Visibility**: An article is public only when it is published, `public`, and its category and every ancestor are `public`, active and not deleted. Everything else is staff-only.
+- **Visibility**: An article is public only when it is published, `public`, and its category and every ancestor are `public`, active and not deleted. Everything else is staff-only. `customers` articles/categories are readable by the `ArticleVisibility::Customers` audience the app passes to `HelpCenter`, `Visibility::applyFor()` or search `audience`; the package never checks authentication.
 - **Localization**: One version per configured language (`ArticleTranslation`, `CategoryTranslation`), one authoritative language per article mirrored onto the main row, fallback or hide for missing languages.
 - **Collections**: Curated, ordered, translatable lists of articles (e.g. an FAQ).
 
@@ -46,7 +46,7 @@ Key options:
 ### Enums
 
 - `ArticleStatus`: `Draft`, `Published`, `Archived`
-- `ArticleVisibility`: `Public`, `Internal`
+- `ArticleVisibility`: `Public`, `Customers` (signed-in customers), `Internal`
 - `TranslationStatus`: `Draft`, `Published`
 
 ### Events

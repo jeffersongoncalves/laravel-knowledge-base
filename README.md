@@ -32,7 +32,7 @@ A Laravel package for building knowledge bases with articles, categories, versio
 - **Customizable Models** — Override any model via config while maintaining contract compliance
 - **Table Prefix** — Configurable table prefix to avoid naming collisions (default: `kb_`)
 - **Translations** — 19 languages out of the box: ar, az, de, en, es, fa, fr, hi, it, ja, nl, pl, pt, pt_BR, ru, tr, uk, uz, zh_CN
-- **Public Visibility** — One rule for what customers may see: published, public, and in a public, active category with public ancestors
+- **Public Visibility** — One rule for what customers may see: published, public, and in a public, active category with public ancestors; plus a `customers` level for signed-in customers
 - **Content Localization** — One version per configured language with fallback, per-language slugs and the default language as the authoritative one
 - **Article Assets** — Images and files owned by an article, one folder per article, referenced by ID and resolved to current URLs at render time, with usage and broken-reference reporting and a prune command
 - **Private Assets** — Stored on a private disk and served with the article's visibility: plain, cacheable URLs for public articles and expiring signed URLs for everything else
@@ -351,6 +351,30 @@ Content meant for customers and staff alike is simply `public`: staff tools use 
 
 > **Note:** `published()` filters on status only. Do not use it on customer-facing pages, or internal content will show up there.
 
+#### Signed-in customers
+
+A third visibility, `customers`, sits between the two: content customers can read once signed in, kept off the public site and search engines. It applies to articles and categories alike, and an article is never more visible than its category: a `public` article in a `customers` category is for signed-in customers only.
+
+| Audience | Reads articles and categories that are |
+|----------|----------------------------------------|
+| `ArticleVisibility::Public` | `public` |
+| `ArticleVisibility::Customers` | `public` or `customers` |
+| `ArticleVisibility::Internal` | any visibility |
+
+The package never checks authentication: your app decides who is a customer and passes the audience in.
+
+```php
+use JeffersonGoncalves\KnowledgeBase\Support\Visibility;
+
+$audience = auth()->check() ? ArticleVisibility::Customers : ArticleVisibility::Public;
+
+$articles = Visibility::applyFor($articleClass::query(), $audience)->get(); // or Visibility::applyCustomer()
+Visibility::articleIsVisibleTo($article, $audience);
+$service->search('export', ['audience' => $audience]);
+```
+
+`publiclyVisible()` and `staffOnly()` keep their meaning: a `customers` article is not publicly visible, so it is staff-only in that split. Its assets are served through signed URLs, like any article that is not public.
+
 ### Localization
 
 The knowledge base can serve its articles and categories in several languages. Configure them once:
@@ -429,7 +453,7 @@ $resolved = $resolver->resolveCategory($category, 'de');
 $resolved = $resolver->resolveCategoryBySlug($categorySlug, 'de');
 ```
 
-Pass `publicOnly: false` for staff lookups that may see internal content.
+Pass `publicOnly: false` for staff lookups that may see internal content, or `audience: ArticleVisibility::Customers` to resolve for signed-in customers.
 
 > **Before migrating an existing knowledge base**, set `default_locale` to the language the existing content is written in. The upgrade tags every existing article and category with that language, so a wrong value mislabels all existing content. The migration stops before writing anything when `default_locale` is not one of `locales`.
 
@@ -526,7 +550,12 @@ Editors may put any article in a collection, public or not: the public view filt
 
 ### Help Center API
 
-`Support\HelpCenter` composes the visibility and language rules for public pages, so a help page is a few lines. It is public-only by construction: every result goes through `Visibility` and `TranslationResolver`, and anything not publicly visible is reported as not found.
+`Support\HelpCenter` composes the visibility and language rules for help pages, so a help page is a few lines. Every result goes through `Visibility` and `TranslationResolver`, and anything the audience may not read is reported as not found. The audience is public unless you pass one as the last argument (see [Signed-in customers](#signed-in-customers)):
+
+```php
+$page = $help->article($slug, 'de', ArticleVisibility::Customers);
+$results = $help->search('reset', 'de', 20, ArticleVisibility::Customers);
+```
 
 ```php
 use JeffersonGoncalves\KnowledgeBase\Support\HelpCenter;
@@ -636,6 +665,7 @@ class SendArticleNotification
 | Value | Label (en) | Label (pt_BR) |
 |-------|-----------|---------------|
 | `public` | Public | Público |
+| `customers` | Signed-in customers | Clientes conectados |
 | `internal` | Internal | Interno |
 
 ### TranslationStatus

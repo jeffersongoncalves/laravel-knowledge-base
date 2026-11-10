@@ -106,6 +106,17 @@ describe('Articles that are not public', function () {
         expect($response->headers->get('Cache-Control'))->toContain('private')->toContain('no-store');
     });
 
+    it('serves an asset of a customers article only through its signed URL', function () {
+        $asset = servedImage(servedArticle(['visibility' => ArticleVisibility::Customers]));
+
+        $signed = $this->assets->url($asset);
+
+        $this->get(plainUrl($asset))->assertNotFound();
+        expect($signed)->toContain('signature=');
+        $response = $this->get($signed)->assertOk();
+        expect($response->headers->get('Cache-Control'))->toContain('private')->toContain('no-store');
+    });
+
     it('treats a draft as not public', function () {
         $asset = servedImage(servedArticle(published: false));
 

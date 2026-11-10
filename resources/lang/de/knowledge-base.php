@@ -8,6 +8,7 @@ return [
     ],
     'visibility' => [
         'public' => 'Öffentlich',
+        'customers' => 'Angemeldete Kunden',
         'internal' => 'Intern',
     ],
     'translation_status' => [

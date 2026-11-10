@@ -8,6 +8,7 @@ return [
     ],
     'visibility' => [
         'public' => 'Herkese açık',
+        'customers' => 'Oturum açmış müşteriler',
         'internal' => 'Dahili',
     ],
     'translation_status' => [

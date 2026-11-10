@@ -8,6 +8,7 @@ return [
     ],
     'visibility' => [
         'public' => 'Публічна',
+        'customers' => 'Авторизовані клієнти',
         'internal' => 'Внутрішня',
     ],
     'translation_status' => [

@@ -58,6 +58,13 @@ class ArticleFactory extends Factory
         ]);
     }
 
+    public function customers(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'visibility' => ArticleVisibility::Customers,
+        ]);
+    }
+
     public function internal(): static
     {
         return $this->state(fn (array $attributes) => [

@@ -161,8 +161,9 @@ ArticleStatus::Draft;       // 'draft'
 ArticleStatus::Published;   // 'published'
 ArticleStatus::Archived;    // 'archived'
 
-ArticleVisibility::Public;   // 'public'
-ArticleVisibility::Internal; // 'internal'
+ArticleVisibility::Public;    // 'public'
+ArticleVisibility::Customers; // 'customers' (signed-in customers)
+ArticleVisibility::Internal;  // 'internal'
 
 // Both have ->label() for translated labels
 ArticleStatus::Draft->label(); // 'Rascunho' (pt_BR) or 'Draft' (en)
