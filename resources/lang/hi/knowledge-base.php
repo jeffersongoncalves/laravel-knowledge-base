@@ -8,6 +8,7 @@ return [
     ],
     'visibility' => [
         'public' => 'सार्वजनिक',
+        'customers' => 'साइन-इन ग्राहक',
         'internal' => 'आंतरिक',
     ],
     'translation_status' => [

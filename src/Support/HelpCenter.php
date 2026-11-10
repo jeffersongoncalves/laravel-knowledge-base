@@ -5,6 +5,7 @@ namespace JeffersonGoncalves\KnowledgeBase\Support;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use JeffersonGoncalves\KnowledgeBase\Enums\ArticleVisibility;
 use JeffersonGoncalves\KnowledgeBase\Enums\TranslationStatus;
 use JeffersonGoncalves\KnowledgeBase\Models\Article;
 use JeffersonGoncalves\KnowledgeBase\Models\Contracts\ArticleContract;
@@ -14,12 +15,15 @@ use JeffersonGoncalves\KnowledgeBase\Models\Contracts\TranslatableContract;
 use JeffersonGoncalves\KnowledgeBase\Services\KnowledgeBaseService;
 
 /**
- * The one read API public help pages use (see design D3).
+ * The one read API help pages use (see design D3).
  *
- * It is public-only by construction: every result goes through
- * {@see Visibility} and {@see TranslationResolver}, so it adds no visibility,
- * language, fallback or redirect rules of its own, only composition. Anything
- * that is not publicly visible is reported as not found, never partially.
+ * Every method serves one audience: the public by default, or whatever the
+ * app passes in (for example ArticleVisibility::Customers once it knows the
+ * reader is a signed-in customer; the package never checks authentication
+ * itself). Every result goes through {@see Visibility} and
+ * {@see TranslationResolver}, so it adds no visibility, language, fallback or
+ * redirect rules of its own, only composition. Anything the audience may not
+ * read is reported as not found, never partially.
  */
 class HelpCenter
 {
@@ -29,23 +33,23 @@ class HelpCenter
     ) {}
 
     /**
-     * The publicly visible category tree for a language, each node named in the
-     * served language with its number of publicly visible articles.
+     * The category tree the audience may read in a language, each node named in
+     * the served language with its number of articles the audience may read.
      *
      * @return list<CategoryNode>
      */
-    public function categories(string $locale): array
+    public function categories(string $locale, ArticleVisibility $audience = ArticleVisibility::Public): array
     {
-        return $this->categoryIndex($locale)['roots'];
+        return $this->categoryIndex($locale, $audience)['roots'];
     }
 
     /**
-     * A publicly visible category by slug, with its publicly visible children
-     * and articles, each resolved for the language; or null.
+     * A category by slug, with its children and articles the audience may
+     * read, each resolved for the language; or null.
      */
-    public function category(string $slug, string $locale): ?CategoryPage
+    public function category(string $slug, string $locale, ArticleVisibility $audience = ArticleVisibility::Public): ?CategoryPage
     {
-        $resolved = $this->resolver->resolveCategoryBySlug($slug, $locale);
+        $resolved = $this->resolver->resolveCategoryBySlug($slug, $locale, audience: $audience);
 
         if (! $resolved instanceof ResolvedTranslation
             || ! $resolved->model instanceof CategoryContract
@@ -54,7 +58,7 @@ class HelpCenter
         }
 
         $category = $resolved->model;
-        $index = $this->categoryIndex($locale);
+        $index = $this->categoryIndex($locale, $audience);
         $children = isset($index['flat'][(int) $category->getKey()])
             ? $index['flat'][(int) $category->getKey()]->children
             : [];
@@ -67,18 +71,19 @@ class HelpCenter
             name: (string) $resolved->translation->getAttribute('name'),
             redirectSlug: $resolved->slug !== $slug ? $resolved->slug : null,
             children: $children,
-            articles: $this->publicArticlesOfCategory($category, $locale),
+            articles: $this->articlesOfCategory($category, $locale, $audience),
         );
     }
 
     /**
-     * A publicly visible article by slug, with the served language, the
+     * An article by slug the audience may read, with the served language, the
      * fallback flag, the redirect slug, the other readable languages, its
-     * category breadcrumb and its publicly visible related articles; or null.
+     * category breadcrumb and its related articles the audience may read; or
+     * null.
      */
-    public function article(string $slug, string $locale): ?ArticlePage
+    public function article(string $slug, string $locale, ArticleVisibility $audience = ArticleVisibility::Public): ?ArticlePage
     {
-        $resolved = $this->resolver->resolveArticleBySlug($slug, $locale);
+        $resolved = $this->resolver->resolveArticleBySlug($slug, $locale, audience: $audience);
 
         if (! $resolved instanceof ResolvedTranslation
             || ! $resolved->model instanceof ArticleContract
@@ -95,16 +100,17 @@ class HelpCenter
             slug: $resolved->slug,
             isFallback: $resolved->locale !== $locale,
             redirectSlug: $resolved->slug !== $slug ? $resolved->slug : null,
-            alternates: $this->alternates($article),
-            breadcrumb: $this->breadcrumb($article, $locale),
-            related: $this->related($article, $locale),
+            alternates: $this->alternates($article, $audience),
+            breadcrumb: $this->breadcrumb($article, $locale, $audience),
+            related: $this->related($article, $locale, $audience),
         );
     }
 
     /**
-     * An active collection by slug, with its public articles in order; or null.
+     * An active collection by slug, with the articles the audience may read in
+     * order; or null.
      */
-    public function collection(string $slug, string $locale): ?CollectionPage
+    public function collection(string $slug, string $locale, ArticleVisibility $audience = ArticleVisibility::Public): ?CollectionPage
     {
         $resolved = $this->resolver->resolveCollectionBySlug($slug, $locale);
 
@@ -123,20 +129,22 @@ class HelpCenter
             slug: $resolved->slug,
             isFallback: $resolved->locale !== $locale,
             redirectSlug: $resolved->slug !== $slug ? $resolved->slug : null,
-            articles: $collection->publicArticles($locale, $this->resolver),
+            articles: $audience === ArticleVisibility::Public
+                ? $collection->publicArticles($locale, $this->resolver)
+                : $this->articlesOfCollection($collection, $locale, $audience),
         );
     }
 
     /**
-     * Search one language through the package's language-aware, public-only
-     * search. Each result reports the language it was served in through
-     * {@see Article::$served_locale}.
+     * Search one language through the package's language-aware search, limited
+     * to what the audience may read. Each result reports the language it was
+     * served in through {@see Article::$served_locale}.
      *
      * @return Collection<int, Article>
      */
-    public function search(string $query, string $locale, ?int $limit = null): Collection
+    public function search(string $query, string $locale, ?int $limit = null, ArticleVisibility $audience = ArticleVisibility::Public): Collection
     {
-        $options = ['locale' => $locale];
+        $options = ['locale' => $locale, 'audience' => $audience];
 
         if ($limit !== null) {
             $options['limit'] = $limit;
@@ -146,22 +154,22 @@ class HelpCenter
     }
 
     /**
-     * The public category tree plus an index of every node by category id, so a
-     * category page can reuse the same resolution and counts.
+     * The category tree the audience may read plus an index of every node by
+     * category id, so a category page can reuse the same resolution and counts.
      *
      * @return array{roots: list<CategoryNode>, flat: array<int, CategoryNode>}
      */
-    protected function categoryIndex(string $locale): array
+    protected function categoryIndex(string $locale, ArticleVisibility $audience): array
     {
         $categoryClass = ModelResolver::category();
 
         /** @var EloquentCollection<int, Model> $categories */
         $categories = $categoryClass::query()
-            ->whereIn('id', Visibility::publicCategoryIds())
+            ->whereIn('id', Visibility::categoryIdsFor($audience))
             ->orderBy('sort_order')
             ->get();
 
-        $counts = $this->publicArticleCounts($locale);
+        $counts = $this->articleCounts($locale, $audience);
 
         /** @var array<int, ResolvedTranslation> $resolved */
         $resolved = [];
@@ -173,7 +181,7 @@ class HelpCenter
                 continue;
             }
 
-            $item = $this->resolver->resolveCategory($category, $locale);
+            $item = $this->resolver->resolveCategory($category, $locale, audience: $audience);
 
             if (! $item instanceof ResolvedTranslation) {
                 continue;
@@ -214,16 +222,17 @@ class HelpCenter
     }
 
     /**
-     * The number of publicly visible articles directly in each category that a
-     * reader of the language gets, matching what the category page lists.
+     * The number of articles directly in each category that the audience may
+     * read and a reader of the language gets, matching what the category page
+     * lists.
      *
      * @return array<int, int>
      */
-    protected function publicArticleCounts(string $locale): array
+    protected function articleCounts(string $locale, ArticleVisibility $audience): array
     {
         $articleClass = ModelResolver::article();
 
-        $query = Visibility::applyPublic($articleClass::query());
+        $query = Visibility::applyFor($articleClass::query(), $audience);
 
         // Under hide, only articles with a published version in the language
         // are served (see TranslationResolver::resolveArticle()).
@@ -251,31 +260,40 @@ class HelpCenter
      * @param  Model&CategoryContract  $category
      * @return list<ResolvedTranslation>
      */
-    protected function publicArticlesOfCategory(Model $category, string $locale): array
+    protected function articlesOfCategory(Model $category, string $locale, ArticleVisibility $audience): array
     {
         $articleClass = ModelResolver::article();
 
-        $articles = Visibility::applyPublic(
-            $articleClass::query()->where('category_id', $category->getKey())
+        $articles = Visibility::applyFor(
+            $articleClass::query()->where('category_id', $category->getKey()),
+            $audience,
         )
             ->orderByDesc('created_at')
             ->get();
 
-        $resolved = [];
+        return $this->resolveArticles($articles, $locale, $audience);
+    }
 
-        foreach ($articles as $article) {
-            if (! $article instanceof TranslatableContract) {
-                continue;
-            }
+    /**
+     * The collection's articles a non-public audience may read, in the
+     * collection's order. The public audience goes through
+     * CollectionContract::publicArticles(), so a custom collection model keeps
+     * control of the public view.
+     *
+     * @param  Model&CollectionContract  $collection
+     * @return list<ResolvedTranslation>
+     */
+    protected function articlesOfCollection(Model $collection, string $locale, ArticleVisibility $audience): array
+    {
+        $relation = $collection->articles();
 
-            $item = $this->resolver->resolveArticle($article, $locale);
+        // Read the articles (not the pivot) so the ambiguous `id` column of the
+        // joined pivot table never overwrites the article's own id.
+        $articles = Visibility::applyFor($relation->getQuery(), $audience)
+            ->select($relation->getRelated()->getTable().'.*')
+            ->get();
 
-            if ($item instanceof ResolvedTranslation) {
-                $resolved[] = $item;
-            }
-        }
-
-        return $resolved;
+        return $this->resolveArticles($articles, $locale, $audience);
     }
 
     /**
@@ -284,7 +302,7 @@ class HelpCenter
      * @param  Model&ArticleContract&TranslatableContract  $article
      * @return list<ResolvedTranslation>
      */
-    protected function breadcrumb(Model $article, string $locale): array
+    protected function breadcrumb(Model $article, string $locale, ArticleVisibility $audience): array
     {
         $categoryClass = ModelResolver::category();
 
@@ -303,7 +321,7 @@ class HelpCenter
 
             $seen[$id] = true;
 
-            $item = $this->resolver->resolveCategory($category, $locale);
+            $item = $this->resolver->resolveCategory($category, $locale, audience: $audience);
 
             if ($item instanceof ResolvedTranslation) {
                 array_unshift($chain, $item);
@@ -324,12 +342,12 @@ class HelpCenter
      * @param  Model&ArticleContract&TranslatableContract  $article
      * @return array<string, string>
      */
-    protected function alternates(Model $article): array
+    protected function alternates(Model $article, ArticleVisibility $audience): array
     {
         $alternates = [];
 
         foreach (Locales::all() as $candidate) {
-            $item = $this->resolver->resolveArticle($article, $candidate);
+            $item = $this->resolver->resolveArticle($article, $candidate, audience: $audience);
 
             if ($item instanceof ResolvedTranslation && $item->locale === $candidate) {
                 $alternates[$candidate] = $item->slug;
@@ -343,7 +361,7 @@ class HelpCenter
      * @param  Model&ArticleContract&TranslatableContract  $article
      * @return list<ResolvedTranslation>
      */
-    protected function related(Model $article, string $locale): array
+    protected function related(Model $article, string $locale, ArticleVisibility $audience): array
     {
         $prefix = config('knowledge-base.table_prefix') ?? '';
 
@@ -351,25 +369,37 @@ class HelpCenter
 
         // Read the related articles (not the pivot) so the ambiguous `id` column
         // of the joined pivot table never overwrites the article's own id.
-        $articles = Visibility::applyPublic($relation->getQuery())
+        $articles = Visibility::applyFor($relation->getQuery(), $audience)
             ->select($relation->getRelated()->getTable().'.*')
             ->orderBy($prefix.'article_relations.sort_order')
             ->get();
 
-        $related = [];
+        return $this->resolveArticles($articles, $locale, $audience);
+    }
 
-        foreach ($articles as $item) {
-            if (! $item instanceof ArticleContract || ! $item instanceof TranslatableContract) {
+    /**
+     * Resolve each article for the language and audience, leaving out the
+     * ones nothing is served for.
+     *
+     * @param  iterable<mixed>  $articles
+     * @return list<ResolvedTranslation>
+     */
+    protected function resolveArticles(iterable $articles, string $locale, ArticleVisibility $audience): array
+    {
+        $resolved = [];
+
+        foreach ($articles as $article) {
+            if (! $article instanceof Model || ! $article instanceof ArticleContract || ! $article instanceof TranslatableContract) {
                 continue;
             }
 
-            $resolved = $this->resolver->resolveArticle($item, $locale);
+            $item = $this->resolver->resolveArticle($article, $locale, audience: $audience);
 
-            if ($resolved instanceof ResolvedTranslation) {
-                $related[] = $resolved;
+            if ($item instanceof ResolvedTranslation) {
+                $resolved[] = $item;
             }
         }
 
-        return $related;
+        return $resolved;
     }
 }

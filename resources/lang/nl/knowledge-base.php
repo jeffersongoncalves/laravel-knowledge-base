@@ -8,6 +8,7 @@ return [
     ],
     'visibility' => [
         'public' => 'Openbaar',
+        'customers' => 'Ingelogde klanten',
         'internal' => 'Intern',
     ],
     'translation_status' => [

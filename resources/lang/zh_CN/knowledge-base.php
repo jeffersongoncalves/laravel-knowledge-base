@@ -8,6 +8,7 @@ return [
     ],
     'visibility' => [
         'public' => '公开',
+        'customers' => '已登录客户',
         'internal' => '内部',
     ],
     'translation_status' => [

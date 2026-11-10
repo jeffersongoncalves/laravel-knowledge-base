@@ -8,6 +8,7 @@ return [
     ],
     'visibility' => [
         'public' => 'Ommaviy',
+        'customers' => 'Tizimga kirgan mijozlar',
         'internal' => 'Ichki',
     ],
     'translation_status' => [

@@ -8,6 +8,7 @@ return [
     ],
     'visibility' => [
         'public' => '公開',
+        'customers' => 'ログイン中の顧客',
         'internal' => '内部',
     ],
     'translation_status' => [
