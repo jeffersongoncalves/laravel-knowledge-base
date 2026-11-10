@@ -2,16 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.2.0 - 2026-11-09
+
+### What's new
+
+- **Order articles inside a category** — articles get a `sort_order` column (unsigned, default 0). `HelpCenter` lists a category's articles by `sort_order`, then newest first. With every value at 0 the order is exactly what it was, so existing installs see no change. Search results and popular articles keep their own order (#27, #29).
+- **Signed-in customers visibility** — new `ArticleVisibility::Customers` (`customers`, "Signed-in customers") between `public` and `internal`, for articles and categories. An article is never more visible than its category (#28, #30).
+  - `Visibility`: `levels()`, `applyFor()`, `applyCustomer()`, `articleIsVisibleTo()`, `categoryIsVisibleTo()`, `categoryIdsFor()`. The public helpers keep their meaning.
+  - `HelpCenter`, `TranslationResolver` and search take an optional `audience` (default public), so existing callers see no change. The package does not check authentication: the app decides who is a customer and passes the audience.
+  - Assets of customers articles are served through signed URLs only.
+  - Labels in all 19 languages and a `customers()` factory state.
+  
+
+### Upgrading from 2.1
+
+Publish and run the new migration:
+
+```bash
+php artisan vendor:publish --tag="knowledge-base-migrations"
+php artisan migrate
+
+```
+It adds `sort_order` to articles. The `customers` visibility needs no migration (the column is already a string).
+
+`publiclyVisible()` and `staffOnly()` still split every published article in two: a `customers` article is not public, so it is staff-only in that split.
+
+The Filament plugin support follows in jeffersongoncalves/filament-knowledge-base#80 and jeffersongoncalves/filament-knowledge-base#81.
+
+Thanks @rcoenen!
+
+**Full Changelog**: https://github.com/jeffersongoncalves/laravel-knowledge-base/compare/v2.1.0...v2.2.0
+
 ## v2.1.0 - 2026-10-12
 
 ### What's new
 
 - **Private article assets** — images and files are now stored on a private disk (default `local`) and served by a package route, `GET /knowledge-base/assets/{uuid}/{name}` (`knowledge-base.assets.show`), that checks the article's visibility on every request (#21).
+  
   - Publicly visible articles: plain, cacheable URLs (`cache_max_age`).
   - Internal, draft, archived or hidden articles: signed URLs only (`signed_url_minutes`); anything else is a 404.
   
 - New `attachments.route` config: `enabled`, `prefix`, `middleware`, `signed_url_minutes`, `cache_max_age`.
+  
 - New `php artisan kb:move-assets` command (with `--dry-run`) to move existing files to the configured disk.
+  
 
 ### Upgrading from 2.0
 
