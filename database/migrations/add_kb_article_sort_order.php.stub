@@ -20,8 +20,10 @@ return new class extends Migration
         }
 
         Schema::table($prefix.'articles', function (Blueprint $table) {
+            // ponytail: no (category_id, sort_order) index. On MySQL it takes
+            // over the category foreign key's index and then cannot be dropped
+            // on rollback; the foreign key index already narrows by category.
             $table->unsignedInteger('sort_order')->default(0);
-            $table->index(['category_id', 'sort_order']);
         });
     }
 
@@ -34,7 +36,6 @@ return new class extends Migration
         }
 
         Schema::table($prefix.'articles', function (Blueprint $table) {
-            $table->dropIndex(['category_id', 'sort_order']);
             $table->dropColumn('sort_order');
         });
     }
